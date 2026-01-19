@@ -1,24 +1,54 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, Building2, Phone, MapPin, Clock, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+type AccountType = 'user' | 'clinic';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
+  const [accountType, setAccountType] = useState<AccountType>('user');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  const { signIn, signUp } = useAuth();
+  // Clinic fields
+  const [clinicName, setClinicName] = useState('');
+  const [cnpj, setCnpj] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [openingHours, setOpeningHours] = useState('');
+  
+  const { signIn, signUp, signUpClinic } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const formatCNPJ = (value: string) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2')
+      .slice(0, 18);
+  };
+
+  const formatPhone = (value: string) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+      .slice(0, 15);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,31 +69,70 @@ export default function Auth() {
           navigate('/');
         }
       } else {
-        if (!name.trim()) {
-          toast({
-            title: 'Nome obrigatório',
-            description: 'Por favor, informe seu nome',
-            variant: 'destructive',
-          });
-          setLoading(false);
-          return;
-        }
-        
-        const { error } = await signUp(email, password, name);
-        if (error) {
-          toast({
-            title: 'Erro ao cadastrar',
-            description: error.message.includes('already registered')
-              ? 'Este e-mail já está cadastrado'
-              : error.message,
-            variant: 'destructive',
-          });
+        if (accountType === 'user') {
+          if (!name.trim()) {
+            toast({
+              title: 'Nome obrigatório',
+              description: 'Por favor, informe seu nome',
+              variant: 'destructive',
+            });
+            setLoading(false);
+            return;
+          }
+          
+          const { error } = await signUp(email, password, name);
+          if (error) {
+            toast({
+              title: 'Erro ao cadastrar',
+              description: error.message.includes('already registered')
+                ? 'Este e-mail já está cadastrado'
+                : error.message,
+              variant: 'destructive',
+            });
+          } else {
+            toast({
+              title: 'Cadastro realizado!',
+              description: 'Você já pode fazer login',
+            });
+            navigate('/');
+          }
         } else {
-          toast({
-            title: 'Cadastro realizado!',
-            description: 'Você já pode fazer login',
+          // Clinic registration
+          if (!name.trim() || !clinicName.trim() || !cnpj.trim() || !address.trim() || !whatsapp.trim()) {
+            toast({
+              title: 'Campos obrigatórios',
+              description: 'Por favor, preencha todos os campos obrigatórios',
+              variant: 'destructive',
+            });
+            setLoading(false);
+            return;
+          }
+
+          const { error } = await signUpClinic(email, password, {
+            responsibleName: name,
+            clinicName,
+            cnpj: cnpj.replace(/\D/g, ''),
+            address,
+            phone: phone.replace(/\D/g, ''),
+            whatsapp: whatsapp.replace(/\D/g, ''),
+            openingHours,
           });
-          navigate('/');
+
+          if (error) {
+            toast({
+              title: 'Erro ao cadastrar',
+              description: error.message.includes('already registered')
+                ? 'Este e-mail já está cadastrado'
+                : error.message,
+              variant: 'destructive',
+            });
+          } else {
+            toast({
+              title: 'Cadastro enviado!',
+              description: 'Sua clínica será analisada e você receberá uma notificação quando for aprovada.',
+            });
+            navigate('/');
+          }
         }
       }
     } catch (err) {
@@ -90,7 +159,7 @@ export default function Auth() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="px-6 pt-4"
+        className="px-6 pt-4 pb-8"
       >
         <h1 className="font-display text-3xl font-bold">
           {isLogin ? 'Bem-vindo!' : 'Criar conta'}
@@ -98,26 +167,160 @@ export default function Auth() {
         <p className="text-muted-foreground mt-2">
           {isLogin 
             ? 'Entre para agendar seus exames' 
-            : 'Preencha os dados para se cadastrar'}
+            : accountType === 'user' 
+              ? 'Preencha os dados para se cadastrar'
+              : 'Cadastre sua clínica para receber agendamentos'}
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-          {!isLogin && (
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome completo</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Seu nome"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="pl-10 h-12"
-                />
-              </div>
-            </div>
-          )}
+        {!isLogin && (
+          <Tabs 
+            value={accountType} 
+            onValueChange={(v) => setAccountType(v as AccountType)}
+            className="mt-6"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="user" className="gap-2">
+                <User className="w-4 h-4" />
+                Usuário
+              </TabsTrigger>
+              <TabsTrigger value="clinic" className="gap-2">
+                <Building2 className="w-4 h-4" />
+                Clínica
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <AnimatePresence mode="wait">
+            {!isLogin && (
+              <motion.div
+                key={accountType}
+                initial={{ opacity: 0, x: accountType === 'clinic' ? 20 : -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: accountType === 'clinic' ? -20 : 20 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-4"
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="name">
+                    {accountType === 'user' ? 'Nome completo' : 'Nome do responsável'}
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder={accountType === 'user' ? 'Seu nome' : 'Nome do responsável'}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="pl-10 h-12"
+                    />
+                  </div>
+                </div>
+
+                {accountType === 'clinic' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="clinicName">Nome da clínica *</Label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Input
+                          id="clinicName"
+                          type="text"
+                          placeholder="Nome da clínica"
+                          value={clinicName}
+                          onChange={(e) => setClinicName(e.target.value)}
+                          className="pl-10 h-12"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cnpj">CNPJ *</Label>
+                      <div className="relative">
+                        <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Input
+                          id="cnpj"
+                          type="text"
+                          placeholder="00.000.000/0000-00"
+                          value={cnpj}
+                          onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
+                          className="pl-10 h-12"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Endereço completo *</Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Input
+                          id="address"
+                          type="text"
+                          placeholder="Rua, número, bairro"
+                          value={address}
+                          onChange={(e) => setAddress(e.target.value)}
+                          className="pl-10 h-12"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Telefone</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="phone"
+                            type="text"
+                            placeholder="(00) 0000-0000"
+                            value={phone}
+                            onChange={(e) => setPhone(formatPhone(e.target.value))}
+                            className="pl-9 h-12 text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="whatsapp">WhatsApp *</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="whatsapp"
+                            type="text"
+                            placeholder="(00) 00000-0000"
+                            value={whatsapp}
+                            onChange={(e) => setWhatsapp(formatPhone(e.target.value))}
+                            className="pl-9 h-12 text-sm"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="openingHours">Horário de funcionamento</Label>
+                      <div className="relative">
+                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Input
+                          id="openingHours"
+                          type="text"
+                          placeholder="Ex: Seg-Sex 8h às 18h"
+                          value={openingHours}
+                          onChange={(e) => setOpeningHours(e.target.value)}
+                          className="pl-10 h-12"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="space-y-2">
             <Label htmlFor="email">E-mail</Label>
@@ -159,8 +362,14 @@ export default function Auth() {
             </div>
           </div>
 
+          {!isLogin && accountType === 'clinic' && (
+            <p className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+              ⏳ Após o cadastro, sua clínica passará por análise. Você será notificado quando for aprovada.
+            </p>
+          )}
+
           <Button type="submit" className="w-full h-12 font-semibold" disabled={loading}>
-            {loading ? 'Aguarde...' : isLogin ? 'Entrar' : 'Cadastrar'}
+            {loading ? 'Aguarde...' : isLogin ? 'Entrar' : accountType === 'user' ? 'Cadastrar' : 'Enviar cadastro'}
           </Button>
         </form>
 

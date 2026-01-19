@@ -3,12 +3,23 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types';
 
+interface ClinicRegistrationData {
+  responsibleName: string;
+  clinicName: string;
+  cnpj: string;
+  address: string;
+  phone?: string;
+  whatsapp: string;
+  openingHours?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
+  signUpClinic: (email: string, password: string, data: ClinicRegistrationData) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<{ error: Error | null }>;
@@ -95,6 +106,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profileError) {
         console.error('Error creating profile:', profileError);
       }
+
+      // Add user role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: data.user.id,
+          role: 'user',
+        });
+
+      if (roleError) {
+        console.error('Error creating user role:', roleError);
+      }
+    }
+
+    return { error: null };
+  };
+
+  const signUpClinic = async (email: string, password: string, data: ClinicRegistrationData) => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { data: authData, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+      },
+    });
+
+    if (error) return { error };
+
+    if (authData.user) {
+      // Create profile for the clinic admin
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: authData.user.id,
+          name: data.responsibleName,
+        });
+      
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+        return { error: profileError };
+      }
+
+      // Create clinic registration (pending approval)
+      const { error: registrationError } = await supabase
+        .from('clinic_registrations')
+        .insert({
+          user_id: authData.user.id,
+          clinic_name: data.clinicName,
+          cnpj: data.cnpj,
+          address: data.address,
+          phone: data.phone || null,
+          whatsapp: data.whatsapp,
+          opening_hours: data.openingHours || null,
+        });
+
+      if (registrationError) {
+        console.error('Error creating clinic registration:', registrationError);
+        return { error: registrationError };
+      }
+
+      // Add user role (still as 'user' until approved)
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: authData.user.id,
+          role: 'user',
+        });
+
+      if (roleError) {
+        console.error('Error creating user role:', roleError);
+      }
     }
 
     return { error: null };
@@ -135,6 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       loading,
       signUp,
+      signUpClinic,
       signIn,
       signOut,
       updateProfile,

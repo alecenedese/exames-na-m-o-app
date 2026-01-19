@@ -149,6 +149,69 @@ export type Database = {
           },
         ]
       }
+      clinic_registrations: {
+        Row: {
+          address: string
+          city: string
+          clinic_name: string
+          cnpj: string
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          opening_hours: string | null
+          phone: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          state: string
+          status: string
+          updated_at: string
+          user_id: string
+          whatsapp: string
+        }
+        Insert: {
+          address: string
+          city?: string
+          clinic_name: string
+          cnpj: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          opening_hours?: string | null
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          state?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          whatsapp: string
+        }
+        Update: {
+          address?: string
+          city?: string
+          clinic_name?: string
+          cnpj?: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          opening_hours?: string | null
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          state?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       clinics: {
         Row: {
           address: string
@@ -274,18 +337,46 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       get_user_profile_id: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_admin_of_clinic: { Args: { clinic_id: string }; Returns: boolean }
       is_clinic_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "user" | "clinic_admin" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -412,6 +503,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["user", "clinic_admin", "super_admin"],
+    },
   },
 } as const
