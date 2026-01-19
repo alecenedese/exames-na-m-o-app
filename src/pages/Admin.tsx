@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
   Building2, 
@@ -7,8 +7,10 @@ import {
   DollarSign, 
   Calendar,
   Loader2,
-  Shield
+  Shield,
+  Home
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { useAuth } from "@/hooks/useAuth";
@@ -67,9 +69,22 @@ const Admin = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <div className="flex items-center gap-2">
-              <Shield className="h-6 w-6" />
-              <h1 className="text-2xl font-bold">Painel Admin</h1>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Shield className="h-6 w-6" />
+                <h1 className="text-2xl font-bold">Painel Admin</h1>
+              </div>
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="text-primary-foreground hover:bg-white/20"
+              >
+                <Link to="/">
+                  <Home className="mr-2 h-4 w-4" />
+                  Home
+                </Link>
+              </Button>
             </div>
             <p className="mt-1 text-primary-foreground/80">
               Gerencie clínicas, exames e agendamentos
