@@ -16,14 +16,14 @@ const Index = () => {
       description: "Admissional, demissional, toxicológico e mais",
       icon: ClipboardList,
       color: "bg-primary",
-      href: "/exames?tipo=exame",
+      href: "/exames?categoria=exame",
     },
     {
       title: "Consultas",
       description: "Clínico geral, oftalmologista, psicólogo",
       icon: Stethoscope,
       color: "bg-secondary",
-      href: "/exames?tipo=consulta",
+      href: "/exames?categoria=consulta",
     },
   ];
 

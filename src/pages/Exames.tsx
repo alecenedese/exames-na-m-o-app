@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MobileLayout } from '@/components/layout/MobileLayout';
@@ -7,13 +7,14 @@ import { ExamCard } from '@/components/exams/ExamCard';
 import { ClinicCard } from '@/components/clinics/ClinicCard';
 import { ClinicMap } from '@/components/clinics/ClinicMap';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useExamTypes, useClinics } from '@/hooks/useClinics';
 import { useAppointments } from '@/hooks/useAppointments';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ExamType, ClinicWithDistance, ClinicExamPrice } from '@/types';
 import { cn } from '@/lib/utils';
-import { MapIcon, List, MessageCircle, Loader2 } from 'lucide-react';
+import { MapIcon, List, MessageCircle, Loader2, Search } from 'lucide-react';
 
 type Step = 'exams' | 'clinics' | 'confirm';
 type Category = 'exame' | 'consulta';
@@ -28,6 +29,7 @@ export default function Exames() {
   const [selectedClinic, setSelectedClinic] = useState<ClinicWithDistance | null>(null);
   const [clinicPrices, setClinicPrices] = useState<ClinicExamPrice[]>([]);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { exams, consultas, loading: loadingExams } = useExamTypes();
   const { clinics, loading: loadingClinics, userLocation, getClinicExams } = useClinics();
@@ -36,6 +38,15 @@ export default function Exames() {
   const { toast } = useToast();
 
   const currentExamTypes = category === 'exame' ? exams : consultas;
+  
+  const filteredExamTypes = useMemo(() => {
+    if (!searchQuery.trim()) return currentExamTypes;
+    const query = searchQuery.toLowerCase().trim();
+    return currentExamTypes.filter(exam => 
+      exam.name.toLowerCase().includes(query) ||
+      exam.description?.toLowerCase().includes(query)
+    );
+  }, [currentExamTypes, searchQuery]);
 
   const toggleExam = (exam: ExamType) => {
     setSelectedExams(prev => 
@@ -101,17 +112,29 @@ export default function Exames() {
               {/* Category tabs */}
               <div className="flex gap-2 mt-4 sticky top-14 bg-background py-2 z-10">
                 <button
-                  onClick={() => setCategory('exame')}
+                  onClick={() => { setCategory('exame'); setSearchQuery(''); }}
                   className={cn('category-pill flex-1', category === 'exame' ? 'category-pill-active' : 'category-pill-inactive')}
                 >
                   Exames
                 </button>
                 <button
-                  onClick={() => setCategory('consulta')}
+                  onClick={() => { setCategory('consulta'); setSearchQuery(''); }}
                   className={cn('category-pill flex-1', category === 'consulta' ? 'category-pill-active' : 'category-pill-inactive')}
                 >
                   Consultas
                 </button>
+              </div>
+
+              {/* Search field */}
+              <div className="relative mt-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder={`Buscar ${category === 'exame' ? 'exames' : 'consultas'}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
               </div>
 
               {/* Exam list */}
@@ -120,8 +143,12 @@ export default function Exames() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
                   </div>
+                ) : filteredExamTypes.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhum resultado encontrado para "{searchQuery}"
+                  </div>
                 ) : (
-                  currentExamTypes.map(exam => (
+                  filteredExamTypes.map(exam => (
                     <ExamCard
                       key={exam.id}
                       exam={exam}
