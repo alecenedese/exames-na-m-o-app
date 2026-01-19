@@ -70,29 +70,41 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
     : { lat: -19.4687, lng: -42.5365 }; // Ipatinga center
 
   useEffect(() => {
+    let isMounted = true;
+
     const initMap = async () => {
       try {
         await loadGoogleMapsScript();
         
-        if (!mapRef.current || mapInstanceRef.current) return;
+        if (!mapRef.current || !isMounted) return;
 
-        const map = new google.maps.Map(mapRef.current, {
-          center: defaultCenter,
-          zoom: 14,
-          styles: cleanMapStyles,
-          disableDefaultUI: false,
-          zoomControl: true,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-          gestureHandling: 'greedy',
-        });
+        // Clear previous markers and overlays
+        markersRef.current.forEach(marker => marker.setMap(null));
+        overlaysRef.current.forEach(overlay => overlay.setMap(null));
+        markersRef.current = [];
+        overlaysRef.current = [];
 
-        mapInstanceRef.current = map;
+        // Create map only once
+        if (!mapInstanceRef.current) {
+          const map = new google.maps.Map(mapRef.current, {
+            center: defaultCenter,
+            zoom: 14,
+            styles: cleanMapStyles,
+            disableDefaultUI: false,
+            zoomControl: true,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+            gestureHandling: 'greedy',
+          });
+          mapInstanceRef.current = map;
+        }
+
+        const map = mapInstanceRef.current;
 
         // User location marker
         if (userLocation) {
-          new google.maps.Marker({
+          const userMarker = new google.maps.Marker({
             map,
             position: { lat: userLocation.lat, lng: userLocation.lng },
             title: 'Você está aqui',
@@ -105,6 +117,7 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
               strokeWeight: 3,
             },
           });
+          markersRef.current.push(userMarker);
         }
 
         // Clinic markers with custom label overlays
@@ -212,12 +225,9 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
     initMap();
 
     return () => {
-      markersRef.current.forEach(marker => {
-        marker.setMap(null);
-      });
-      overlaysRef.current.forEach(overlay => {
-        overlay.setMap(null);
-      });
+      isMounted = false;
+      markersRef.current.forEach(marker => marker.setMap(null));
+      overlaysRef.current.forEach(overlay => overlay.setMap(null));
       markersRef.current = [];
       overlaysRef.current = [];
     };
