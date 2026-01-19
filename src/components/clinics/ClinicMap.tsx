@@ -73,6 +73,7 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
+          gestureHandling: 'greedy',
         });
 
         mapInstanceRef.current = map;
