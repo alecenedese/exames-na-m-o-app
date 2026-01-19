@@ -1,14 +1,16 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Stethoscope, ClipboardList, MapPin, Clock, Phone, ChevronRight } from "lucide-react";
+import { Stethoscope, ClipboardList, MapPin, Clock, Phone, ChevronRight, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdmin } from "@/hooks/useAdmin";
 
 const Index = () => {
   const { user } = useAuth();
+  const { isSuperAdmin } = useAdmin();
 
   const categories = [
     {
@@ -74,12 +76,22 @@ const Index = () => {
                   </Button>
                 </div>
               ) : (
-                <Button asChild variant="secondary" className="w-full">
-                  <Link to="/exames">
-                    Agendar Agora
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
+                <div className="space-y-3">
+                  {isSuperAdmin && (
+                    <Button asChild variant="outline" className="w-full border-white/50 bg-white/10 text-white hover:bg-white/20">
+                      <Link to="/admin">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Painel Admin
+                      </Link>
+                    </Button>
+                  )}
+                  <Button asChild variant="secondary" className="w-full">
+                    <Link to="/exames">
+                      Agendar Agora
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
               )}
             </motion.div>
 
