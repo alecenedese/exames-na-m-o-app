@@ -69,7 +69,7 @@ const Index = () => {
                   <Button asChild variant="secondary" className="flex-1">
                     <Link to="/auth">Entrar</Link>
                   </Button>
-                  <Button asChild variant="outline" className="flex-1 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+                  <Button asChild variant="outline" className="flex-1 border-white/50 bg-white/10 text-white hover:bg-white/20">
                     <Link to="/auth?modo=cadastro">Cadastrar</Link>
                   </Button>
                 </div>
