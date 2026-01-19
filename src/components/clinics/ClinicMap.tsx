@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+/// <reference types="google.maps" />
+import { useEffect, useRef, useState } from 'react';
 import { ClinicWithDistance } from '@/types';
+import { Loader2 } from 'lucide-react';
 
-// Fix for default marker icons in Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
+declare global {
+  interface Window {
+    google?: typeof google;
+  }
+}
+
+const GOOGLE_MAPS_API_KEY = 'AIzaSyCMh-I_OgUOqWmr884bNUgwH8bVci6xY_4';
 
 interface ClinicMapProps {
   clinics: ClinicWithDistance[];
@@ -18,32 +18,69 @@ interface ClinicMapProps {
   onClinicClick: (clinic: ClinicWithDistance) => void;
 }
 
-export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicClick }: ClinicMapProps) {
-  const [mapLoaded, setMapLoaded] = useState(false);
-  
-  const defaultCenter: [number, number] = userLocation 
-    ? [userLocation.lat, userLocation.lng] 
-    : [-19.4687, -42.5365]; // Ipatinga center
+// Load Google Maps script dynamically
+const loadGoogleMapsScript = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (window.google?.maps) {
+      resolve();
+      return;
+    }
 
-  const clinicsWithCoords = clinics.filter(c => c.latitude && c.longitude);
+    const existingScript = document.getElementById('google-maps-script');
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve());
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = 'google-maps-script';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=marker`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Google Maps'));
+    document.head.appendChild(script);
+  });
+};
+
+export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicClick }: ClinicMapProps) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const defaultCenter = userLocation 
+    ? { lat: userLocation.lat, lng: userLocation.lng }
+    : { lat: -19.4687, lng: -42.5365 }; // Ipatinga center
 
   useEffect(() => {
-    // Dynamic import to avoid SSR issues
     const initMap = async () => {
-      const container = document.getElementById('clinic-map');
-      if (!container || (container as any)._leaflet_id) return;
+      try {
+        await loadGoogleMapsScript();
+        
+        if (!mapRef.current || mapInstanceRef.current) return;
 
-      const map = L.map(container).setView(defaultCenter, 14);
+        const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+        const { AdvancedMarkerElement } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      }).addTo(map);
+        const map = new Map(mapRef.current, {
+          center: defaultCenter,
+          zoom: 14,
+          mapId: 'clinic-map-id',
+          disableDefaultUI: false,
+          zoomControl: true,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+        });
 
-      // User location marker
-      if (userLocation) {
-        const userIcon = L.divIcon({
-          className: 'custom-div-icon',
-          html: `
+        mapInstanceRef.current = map;
+
+        // User location marker
+        if (userLocation) {
+          const userMarkerElement = document.createElement('div');
+          userMarkerElement.innerHTML = `
             <div style="
               background: hsl(217, 91%, 60%);
               width: 20px;
@@ -52,22 +89,24 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
               box-shadow: 0 0 0 6px hsla(217, 91%, 60%, 0.3);
               border: 3px solid white;
             "></div>
-          `,
-          iconSize: [20, 20],
-          iconAnchor: [10, 10],
-        });
+          `;
 
-        L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
-          .addTo(map)
-          .bindPopup('<span class="font-medium">Você está aqui</span>');
-      }
+          new AdvancedMarkerElement({
+            map,
+            position: { lat: userLocation.lat, lng: userLocation.lng },
+            content: userMarkerElement,
+            title: 'Você está aqui',
+          });
+        }
 
-      // Clinic markers
-      clinicsWithCoords.forEach((clinic) => {
-        const isSelected = clinic.id === selectedClinicId;
-        const clinicIcon = L.divIcon({
-          className: 'custom-div-icon',
-          html: `
+        // Clinic markers
+        const clinicsWithCoords = clinics.filter(c => c.latitude && c.longitude);
+        
+        clinicsWithCoords.forEach((clinic) => {
+          const isSelected = clinic.id === selectedClinicId;
+          
+          const markerElement = document.createElement('div');
+          markerElement.innerHTML = `
             <div style="
               background: ${isSelected ? 'hsl(152, 69%, 40%)' : 'hsl(152, 69%, 30%)'};
               width: 36px;
@@ -78,49 +117,80 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
               justify-content: center;
               box-shadow: 0 2px 8px rgba(0,0,0,0.3);
               border: 3px solid white;
+              cursor: pointer;
               ${isSelected ? 'transform: scale(1.2);' : ''}
             ">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
                 <path d="M12 2L12 22M2 12L22 12"/>
               </svg>
             </div>
-          `,
-          iconSize: [36, 36],
-          iconAnchor: [18, 18],
-          popupAnchor: [0, -18],
+          `;
+
+          const marker = new AdvancedMarkerElement({
+            map,
+            position: { lat: Number(clinic.latitude), lng: Number(clinic.longitude) },
+            content: markerElement,
+            title: clinic.name,
+          });
+
+          marker.addListener('click', () => {
+            onClinicClick(clinic);
+            
+            // Show info window
+            const infoWindow = new google.maps.InfoWindow({
+              content: `
+                <div style="min-width: 180px; padding: 4px;">
+                  <h3 style="font-weight: bold; font-size: 0.875rem; margin: 0;">${clinic.name}</h3>
+                  <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">${clinic.address}</p>
+                  ${clinic.distance !== undefined ? `
+                    <p style="font-size: 0.75rem; color: #16a34a; margin-top: 0.25rem; font-weight: 500;">
+                      ${clinic.distance.toFixed(1)} km de você
+                    </p>
+                  ` : ''}
+                </div>
+              `,
+            });
+            infoWindow.open(map, marker);
+          });
+
+          markersRef.current.push(marker);
         });
 
-        const popupContent = `
-          <div style="min-width: 180px;">
-            <h3 style="font-weight: bold; font-size: 0.875rem;">${clinic.name}</h3>
-            <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">${clinic.address}</p>
-            ${clinic.distance !== undefined ? `
-              <p style="font-size: 0.75rem; color: #16a34a; margin-top: 0.25rem; font-weight: 500;">
-                ${clinic.distance.toFixed(1)} km de você
-              </p>
-            ` : ''}
-          </div>
-        `;
-
-        L.marker([Number(clinic.latitude), Number(clinic.longitude)], { icon: clinicIcon })
-          .addTo(map)
-          .bindPopup(popupContent)
-          .on('click', () => onClinicClick(clinic));
-      });
-
-      setMapLoaded(true);
-
-      return () => {
-        map.remove();
-      };
+        setLoading(false);
+      } catch (err) {
+        console.error('Error initializing map:', err);
+        setError('Erro ao carregar o mapa');
+        setLoading(false);
+      }
     };
 
     initMap();
-  }, []);
+
+    return () => {
+      markersRef.current.forEach(marker => {
+        if (marker.map) marker.map = null;
+      });
+      markersRef.current = [];
+      mapInstanceRef.current = null;
+    };
+  }, [clinics, userLocation, selectedClinicId, onClinicClick]);
+
+  if (error) {
+    return (
+      <div className="map-container shadow-medium flex items-center justify-center bg-muted">
+        <p className="text-muted-foreground">{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="map-container shadow-medium">
-      <div id="clinic-map" className="w-full h-full" />
+    <div className="map-container shadow-medium relative">
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      )}
+      <div ref={mapRef} className="w-full h-full" />
     </div>
   );
 }
