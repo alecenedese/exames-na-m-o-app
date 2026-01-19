@@ -1,7 +1,7 @@
 /// <reference types="google.maps" />
 import { useEffect, useRef, useState } from 'react';
 import { ClinicWithDistance } from '@/types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -10,6 +10,22 @@ declare global {
 }
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyCMh-I_OgUOqWmr884bNUgwH8bVci6xY_4';
+
+// Map styles to hide POIs (businesses, restaurants, etc.)
+const mapStyles: google.maps.MapTypeStyle[] = [
+  {
+    featureType: 'poi',
+    stylers: [{ visibility: 'off' }]
+  },
+  {
+    featureType: 'poi.park',
+    stylers: [{ visibility: 'on' }]
+  },
+  {
+    featureType: 'transit',
+    stylers: [{ visibility: 'off' }]
+  }
+];
 
 interface ClinicMapProps {
   clinics: ClinicWithDistance[];
@@ -54,6 +70,8 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
     ? { lat: userLocation.lat, lng: userLocation.lng }
     : { lat: -19.4687, lng: -42.5365 }; // Ipatinga center
 
+  const clinicsWithCoords = clinics.filter(c => c.latitude && c.longitude);
+
   useEffect(() => {
     const initMap = async () => {
       try {
@@ -74,6 +92,7 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
           streetViewControl: false,
           fullscreenControl: false,
           gestureHandling: 'greedy',
+          styles: mapStyles,
         });
 
         mapInstanceRef.current = map;
@@ -101,8 +120,6 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
         }
 
         // Clinic markers
-        const clinicsWithCoords = clinics.filter(c => c.latitude && c.longitude);
-        
         clinicsWithCoords.forEach((clinic) => {
           const isSelected = clinic.id === selectedClinicId;
           
@@ -129,29 +146,25 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
 
           const marker = new AdvancedMarkerElement({
             map,
-            position: { lat: Number(clinic.latitude), lng: Number(clinic.longitude) },
+            position: { lat: clinic.latitude!, lng: clinic.longitude! },
             content: markerElement,
             title: clinic.name,
           });
 
+          // Info window
+          const infoWindow = new google.maps.InfoWindow({
+            content: `
+              <div style="padding: 8px; min-width: 150px;">
+                <h3 style="font-weight: bold; margin-bottom: 4px; color: #1a1a1a;">${clinic.name}</h3>
+                <p style="color: #666; font-size: 12px; margin: 0;">${clinic.address}</p>
+                ${clinic.distance ? `<p style="color: #16a34a; font-size: 12px; margin-top: 4px;">${clinic.distance.toFixed(1)} km</p>` : ''}
+              </div>
+            `,
+          });
+
           marker.addListener('click', () => {
-            onClinicClick(clinic);
-            
-            // Show info window
-            const infoWindow = new google.maps.InfoWindow({
-              content: `
-                <div style="min-width: 180px; padding: 4px;">
-                  <h3 style="font-weight: bold; font-size: 0.875rem; margin: 0;">${clinic.name}</h3>
-                  <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">${clinic.address}</p>
-                  ${clinic.distance !== undefined ? `
-                    <p style="font-size: 0.75rem; color: #16a34a; margin-top: 0.25rem; font-weight: 500;">
-                      ${clinic.distance.toFixed(1)} km de você
-                    </p>
-                  ` : ''}
-                </div>
-              `,
-            });
             infoWindow.open(map, marker);
+            onClinicClick(clinic);
           });
 
           markersRef.current.push(marker);
@@ -169,29 +182,58 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
 
     return () => {
       markersRef.current.forEach(marker => {
-        if (marker.map) marker.map = null;
+        marker.map = null;
       });
       markersRef.current = [];
-      mapInstanceRef.current = null;
     };
-  }, [clinics, userLocation, selectedClinicId, onClinicClick]);
+  }, [clinics, userLocation, selectedClinicId]);
+
+  // Handle clinic selection center
+  useEffect(() => {
+    if (mapInstanceRef.current && selectedClinicId) {
+      const clinic = clinics.find(c => c.id === selectedClinicId);
+      if (clinic?.latitude && clinic?.longitude) {
+        mapInstanceRef.current.panTo({ lat: clinic.latitude, lng: clinic.longitude });
+      }
+    }
+  }, [selectedClinicId, clinics]);
 
   if (error) {
     return (
-      <div className="map-container shadow-medium flex items-center justify-center bg-muted">
-        <p className="text-muted-foreground">{error}</p>
+      <div className="h-64 rounded-xl bg-muted flex items-center justify-center">
+        <p className="text-destructive">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="map-container shadow-medium relative">
+    <div className="relative rounded-xl overflow-hidden shadow-lg">
+      {/* Legend */}
+      <div className="absolute top-2 left-2 right-2 z-10 bg-background/95 backdrop-blur-sm rounded-lg shadow-md p-2 max-h-24 overflow-y-auto">
+        <div className="flex flex-wrap gap-2">
+          {clinicsWithCoords.map((clinic) => (
+            <button
+              key={clinic.id}
+              onClick={() => onClinicClick(clinic)}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all ${
+                clinic.id === selectedClinicId
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted hover:bg-muted/80 text-foreground'
+              }`}
+            >
+              <MapPin className="h-3 w-3" />
+              <span className="truncate max-w-[120px]">{clinic.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
-      <div ref={mapRef} className="w-full h-full" />
+      <div ref={mapRef} className="h-72 w-full" />
     </div>
   );
 }
