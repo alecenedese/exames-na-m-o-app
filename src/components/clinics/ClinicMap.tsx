@@ -11,38 +11,16 @@ declare global {
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyCMh-I_OgUOqWmr884bNUgwH8bVci6xY_4';
 
-// Map styles to hide POIs (businesses, restaurants, etc.)
-const mapStyles: google.maps.MapTypeStyle[] = [
+// Clean map style - hide ALL POIs like Uber
+const cleanMapStyles: google.maps.MapTypeStyle[] = [
   {
-    featureType: 'poi.business',
-    stylers: [{ visibility: 'off' }]
-  },
-  {
-    featureType: 'poi.attraction',
-    stylers: [{ visibility: 'off' }]
-  },
-  {
-    featureType: 'poi.government',
-    stylers: [{ visibility: 'off' }]
-  },
-  {
-    featureType: 'poi.medical',
-    stylers: [{ visibility: 'off' }]
-  },
-  {
-    featureType: 'poi.place_of_worship',
-    stylers: [{ visibility: 'off' }]
-  },
-  {
-    featureType: 'poi.school',
-    stylers: [{ visibility: 'off' }]
-  },
-  {
-    featureType: 'poi.sports_complex',
+    featureType: 'poi',
+    elementType: 'all',
     stylers: [{ visibility: 'off' }]
   },
   {
     featureType: 'transit',
+    elementType: 'all',
     stylers: [{ visibility: 'off' }]
   }
 ];
@@ -70,7 +48,7 @@ const loadGoogleMapsScript = (): Promise<void> => {
 
     const script = document.createElement('script');
     script.id = 'google-maps-script';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=marker`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
@@ -82,7 +60,8 @@ const loadGoogleMapsScript = (): Promise<void> => {
 export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicClick }: ClinicMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const markersRef = useRef<google.maps.Marker[]>([]);
+  const infoWindowsRef = useRef<google.maps.InfoWindow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,13 +76,10 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
         
         if (!mapRef.current || mapInstanceRef.current) return;
 
-        const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
-        const { AdvancedMarkerElement } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
-
-        const map = new Map(mapRef.current, {
+        const map = new google.maps.Map(mapRef.current, {
           center: defaultCenter,
           zoom: 14,
-          mapId: 'DEMO_MAP_ID',
+          styles: cleanMapStyles,
           disableDefaultUI: false,
           zoomControl: true,
           mapTypeControl: false,
@@ -112,81 +88,52 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
           gestureHandling: 'greedy',
         });
 
-        // Apply styles after map loads to hide POIs
-        map.setOptions({ styles: mapStyles });
-
         mapInstanceRef.current = map;
 
         // User location marker
         if (userLocation) {
-          const userMarkerElement = document.createElement('div');
-          userMarkerElement.innerHTML = `
-            <div style="
-              background: hsl(217, 91%, 60%);
-              width: 20px;
-              height: 20px;
-              border-radius: 50%;
-              box-shadow: 0 0 0 6px hsla(217, 91%, 60%, 0.3);
-              border: 3px solid white;
-            "></div>
-          `;
-
-          new AdvancedMarkerElement({
+          new google.maps.Marker({
             map,
             position: { lat: userLocation.lat, lng: userLocation.lng },
-            content: userMarkerElement,
             title: 'Você está aqui',
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 10,
+              fillColor: '#3b82f6',
+              fillOpacity: 1,
+              strokeColor: '#ffffff',
+              strokeWeight: 3,
+            },
           });
         }
 
-        // Clinic markers with label on top
+        // Clinic markers with label
         const clinicsWithCoords = clinics.filter(c => c.latitude && c.longitude);
         
         clinicsWithCoords.forEach((clinic) => {
           const isSelected = clinic.id === selectedClinicId;
           
-          // Create marker with label on top
-          const markerElement = document.createElement('div');
-          markerElement.style.cssText = 'display: flex; flex-direction: column; align-items: center; cursor: pointer;';
-          markerElement.innerHTML = `
-            <div style="
-              background: white;
-              padding: 4px 8px;
-              border-radius: 4px;
-              box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-              margin-bottom: 4px;
-              font-size: 11px;
-              font-weight: 600;
-              color: #1a1a1a;
-              white-space: nowrap;
-              max-width: 150px;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              border: ${isSelected ? '2px solid hsl(152, 69%, 40%)' : '1px solid #e5e5e5'};
-            ">${clinic.name}</div>
-            <div style="
-              background: ${isSelected ? 'hsl(152, 69%, 40%)' : 'hsl(152, 69%, 30%)'};
-              width: 32px;
-              height: 32px;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-              border: 3px solid white;
-              ${isSelected ? 'transform: scale(1.15);' : ''}
-            ">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
-                <path d="M12 2L12 22M2 12L22 12"/>
-              </svg>
-            </div>
-          `;
-
-          const marker = new AdvancedMarkerElement({
+          const marker = new google.maps.Marker({
             map,
             position: { lat: clinic.latitude!, lng: clinic.longitude! },
-            content: markerElement,
             title: clinic.name,
+            label: {
+              text: clinic.name,
+              color: '#1a1a1a',
+              fontSize: '11px',
+              fontWeight: '600',
+              className: 'clinic-marker-label'
+            },
+            icon: {
+              path: 'M12 0C7.58 0 4 3.58 4 8c0 5.25 8 14 8 14s8-8.75 8-14c0-4.42-3.58-8-8-8zm0 11c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z',
+              fillColor: isSelected ? '#22c55e' : '#16a34a',
+              fillOpacity: 1,
+              strokeColor: '#ffffff',
+              strokeWeight: 2,
+              scale: isSelected ? 2 : 1.5,
+              anchor: new google.maps.Point(12, 22),
+              labelOrigin: new google.maps.Point(12, -8),
+            },
           });
 
           marker.addListener('click', () => {
@@ -208,9 +155,10 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
 
     return () => {
       markersRef.current.forEach(marker => {
-        marker.map = null;
+        marker.setMap(null);
       });
       markersRef.current = [];
+      infoWindowsRef.current = [];
     };
   }, [clinics, userLocation, selectedClinicId]);
 
