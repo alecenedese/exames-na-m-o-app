@@ -28,7 +28,7 @@ export default function Exames() {
   const [selectedExams, setSelectedExams] = useState<ExamType[]>([]);
   const [selectedClinic, setSelectedClinic] = useState<ClinicWithDistance | null>(null);
   const [clinicPrices, setClinicPrices] = useState<ClinicExamPrice[]>([]);
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('map');
   const [searchQuery, setSearchQuery] = useState('');
 
   const { exams, consultas, loading: loadingExams } = useExamTypes();
