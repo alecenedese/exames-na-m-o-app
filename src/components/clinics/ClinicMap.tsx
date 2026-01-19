@@ -107,23 +107,17 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
           });
         }
 
-        // Clinic markers with label
+        // Clinic markers with custom label overlays
         const clinicsWithCoords = clinics.filter(c => c.latitude && c.longitude);
         
         clinicsWithCoords.forEach((clinic) => {
           const isSelected = clinic.id === selectedClinicId;
           
+          // Create the marker
           const marker = new google.maps.Marker({
             map,
             position: { lat: clinic.latitude!, lng: clinic.longitude! },
             title: clinic.name,
-            label: {
-              text: clinic.name,
-              color: '#1a1a1a',
-              fontSize: '11px',
-              fontWeight: '600',
-              className: 'clinic-marker-label'
-            },
             icon: {
               path: 'M12 0C7.58 0 4 3.58 4 8c0 5.25 8 14 8 14s8-8.75 8-14c0-4.42-3.58-8-8-8zm0 11c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z',
               fillColor: isSelected ? '#22c55e' : '#16a34a',
@@ -132,11 +126,63 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
               strokeWeight: 2,
               scale: isSelected ? 2 : 1.5,
               anchor: new google.maps.Point(12, 22),
-              labelOrigin: new google.maps.Point(12, -8),
             },
           });
 
+          // Create custom label overlay using InfoWindow
+          const labelContent = document.createElement('div');
+          labelContent.style.cssText = `
+            background: white;
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #16a34a;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            white-space: nowrap;
+            border: 2px solid #16a34a;
+            cursor: pointer;
+          `;
+          labelContent.textContent = clinic.name;
+
+          const infoWindow = new google.maps.InfoWindow({
+            content: labelContent,
+            position: { lat: clinic.latitude!, lng: clinic.longitude! },
+            disableAutoPan: true,
+            pixelOffset: new google.maps.Size(0, -30),
+          });
+
+          infoWindow.open(map);
+          infoWindowsRef.current.push(infoWindow);
+
+          // Hide close button via CSS
+          google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
+            const iwOuter = document.querySelector('.gm-style-iw-c');
+            if (iwOuter) {
+              (iwOuter as HTMLElement).style.padding = '0';
+              (iwOuter as HTMLElement).style.background = 'transparent';
+              (iwOuter as HTMLElement).style.boxShadow = 'none';
+              (iwOuter as HTMLElement).style.border = 'none';
+            }
+            const closeBtn = document.querySelector('.gm-ui-hover-effect');
+            if (closeBtn) {
+              (closeBtn as HTMLElement).style.display = 'none';
+            }
+            const iwBackground = document.querySelector('.gm-style-iw-d');
+            if (iwBackground) {
+              (iwBackground as HTMLElement).style.overflow = 'visible';
+            }
+            const iwTail = document.querySelector('.gm-style-iw-tc');
+            if (iwTail) {
+              (iwTail as HTMLElement).style.display = 'none';
+            }
+          });
+
           marker.addListener('click', () => {
+            onClinicClick(clinic);
+          });
+
+          labelContent.addEventListener('click', () => {
             onClinicClick(clinic);
           });
 
