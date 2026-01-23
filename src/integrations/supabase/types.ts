@@ -363,6 +363,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_clinic_id: { Args: never; Returns: string }
       get_user_profile_id: { Args: never; Returns: string }
       has_role: {
         Args: {
