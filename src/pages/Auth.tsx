@@ -1,15 +1,22 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, Building2, Phone, MapPin, Clock, FileText } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, Building2, Phone, MapPin, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type AccountType = 'user' | 'clinic';
+
+interface OpeningHoursState {
+  weekdays: boolean;
+  saturday: boolean;
+  sunday: boolean;
+}
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -26,7 +33,11 @@ export default function Auth() {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  const [openingHours, setOpeningHours] = useState('');
+  const [openingHours, setOpeningHours] = useState<OpeningHoursState>({
+    weekdays: false,
+    saturday: false,
+    sunday: false,
+  });
   
   const { signIn, signUp, signUpClinic } = useAuth();
   const { toast } = useToast();
@@ -48,6 +59,14 @@ export default function Auth() {
       .replace(/^(\d{2})(\d)/, '($1) $2')
       .replace(/(\d{5})(\d)/, '$1-$2')
       .slice(0, 15);
+  };
+
+  const formatOpeningHoursString = (): string => {
+    const parts: string[] = [];
+    if (openingHours.weekdays) parts.push('Segunda a Sexta');
+    if (openingHours.saturday) parts.push('Sábado');
+    if (openingHours.sunday) parts.push('Domingo');
+    return parts.join(', ');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,7 +134,7 @@ export default function Auth() {
             address,
             phone: phone.replace(/\D/g, ''),
             whatsapp: whatsapp.replace(/\D/g, ''),
-            openingHours,
+            openingHours: formatOpeningHoursString(),
           });
 
           if (error) {
@@ -128,8 +147,8 @@ export default function Auth() {
             });
           } else {
             toast({
-              title: 'Cadastro enviado!',
-              description: 'Sua clínica será analisada e você receberá uma notificação quando for aprovada.',
+              title: 'Cadastro realizado!',
+              description: 'Bem-vindo ao Exames na Mão!',
             });
             navigate('/');
           }
@@ -302,18 +321,45 @@ export default function Auth() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="openingHours">Horário de funcionamento</Label>
-                      <div className="relative">
-                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <Input
-                          id="openingHours"
-                          type="text"
-                          placeholder="Ex: Seg-Sex 8h às 18h"
-                          value={openingHours}
-                          onChange={(e) => setOpeningHours(e.target.value)}
-                          className="pl-10 h-12"
-                        />
+                    <div className="space-y-3">
+                      <Label>Horário de funcionamento</Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="weekdays"
+                            checked={openingHours.weekdays}
+                            onCheckedChange={(checked) => 
+                              setOpeningHours(prev => ({ ...prev, weekdays: checked === true }))
+                            }
+                          />
+                          <label htmlFor="weekdays" className="text-sm cursor-pointer">
+                            Segunda a Sexta
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="saturday"
+                            checked={openingHours.saturday}
+                            onCheckedChange={(checked) => 
+                              setOpeningHours(prev => ({ ...prev, saturday: checked === true }))
+                            }
+                          />
+                          <label htmlFor="saturday" className="text-sm cursor-pointer">
+                            Sábado
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="sunday"
+                            checked={openingHours.sunday}
+                            onCheckedChange={(checked) => 
+                              setOpeningHours(prev => ({ ...prev, sunday: checked === true }))
+                            }
+                          />
+                          <label htmlFor="sunday" className="text-sm cursor-pointer">
+                            Domingo
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </>
@@ -362,14 +408,8 @@ export default function Auth() {
             </div>
           </div>
 
-          {!isLogin && accountType === 'clinic' && (
-            <p className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-              ⏳ Após o cadastro, sua clínica passará por análise. Você será notificado quando for aprovada.
-            </p>
-          )}
-
           <Button type="submit" className="w-full h-12 font-semibold" disabled={loading}>
-            {loading ? 'Aguarde...' : isLogin ? 'Entrar' : accountType === 'user' ? 'Cadastrar' : 'Enviar cadastro'}
+            {loading ? 'Aguarde...' : isLogin ? 'Entrar' : accountType === 'user' ? 'Cadastrar' : 'Cadastrar Clínica'}
           </Button>
         </form>
 
