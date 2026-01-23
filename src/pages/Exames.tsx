@@ -157,14 +157,21 @@ export default function Exames() {
       return;
     }
 
+    // Clear pending order if exists
+    localStorage.removeItem(PENDING_ORDER_KEY);
+
+    // Open WhatsApp
     if (whatsappMessage) {
       openWhatsApp(selectedClinic.whatsapp, whatsappMessage);
     }
 
     toast({
-      title: 'Agendamento enviado!',
-      description: 'Você será redirecionado para o WhatsApp',
+      title: 'Agendamento salvo!',
+      description: 'Acompanhe seus agendamentos na aba Agendamentos',
     });
+
+    // Redirect to appointments page
+    navigate('/agendamentos');
   };
 
   const totalPrice = clinicPrices
