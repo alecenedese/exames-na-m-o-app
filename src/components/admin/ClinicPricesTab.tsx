@@ -6,7 +6,6 @@ import {
   Check,
   X,
   Search,
-  FileText,
   Stethoscope,
   ClipboardList
 } from "lucide-react";
@@ -15,8 +14,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -26,6 +30,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useClinicAdmin } from "@/hooks/useClinicAdmin";
+
+// Format price to Brazilian Real format (50 -> 50,00)
+const formatPriceBR = (price: number) => {
+  return price.toFixed(2).replace('.', ',');
+};
 
 export function ClinicPricesTab() {
   const { 
@@ -77,12 +86,12 @@ export function ClinicPricesTab() {
     });
   };
 
-  const togglePrescription = (examId: string, currentPrice: number, isAvailable: boolean, currentPrescription: boolean) => {
+  const setPrescription = (examId: string, currentPrice: number, isAvailable: boolean, requiresPrescription: boolean) => {
     setExamPrice.mutate({
       exam_type_id: examId,
       price: currentPrice,
       is_available: isAvailable,
-      requires_prescription: !currentPrescription,
+      requires_prescription: requiresPrescription,
     });
   };
 
@@ -161,27 +170,32 @@ export function ClinicPricesTab() {
                         })}
                       >
                         {priceData?.price 
-                          ? `R$ ${priceData.price.toFixed(2)}`
-                          : <span className="text-muted-foreground">Definir</span>
+                          ? `R$ ${formatPriceBR(priceData.price)}`
+                          : <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-medium">Definir preço</span>
                         }
                       </span>
                     )}
                   </TableCell>
                   <TableCell className="text-center">
                     {priceData ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <Checkbox
-                          checked={requiresPrescription}
-                          onCheckedChange={() => togglePrescription(
-                            exam.id, 
-                            priceData.price, 
-                            priceData.is_available,
-                            requiresPrescription
-                          )}
-                          disabled={setExamPrice.isPending}
-                        />
-                        <FileText className={`h-4 w-4 ${requiresPrescription ? 'text-primary' : 'text-muted-foreground/30'}`} />
-                      </div>
+                      <Select
+                        value={requiresPrescription ? "sim" : "nao"}
+                        onValueChange={(value) => setPrescription(
+                          exam.id, 
+                          priceData.price, 
+                          priceData.is_available,
+                          value === "sim"
+                        )}
+                        disabled={setExamPrice.isPending}
+                      >
+                        <SelectTrigger className="w-16 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-lg z-50">
+                          <SelectItem value="nao">Não</SelectItem>
+                          <SelectItem value="sim">Sim</SelectItem>
+                        </SelectContent>
+                      </Select>
                     ) : (
                       <span className="text-muted-foreground text-xs">-</span>
                     )}
