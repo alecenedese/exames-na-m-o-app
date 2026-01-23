@@ -1,6 +1,6 @@
 /// <reference types="google.maps" />
 import { useEffect, useRef, useState } from 'react';
-import { ClinicWithDistance } from '@/types';
+import { ClinicWithDistance, ClinicExamPrice, ExamType } from '@/types';
 import { Loader2 } from 'lucide-react';
 
 declare global {
@@ -30,6 +30,8 @@ interface ClinicMapProps {
   userLocation: { lat: number; lng: number } | null;
   selectedClinicId?: string;
   onClinicClick: (clinic: ClinicWithDistance) => void;
+  selectedExams?: ExamType[];
+  clinicsPrices?: Map<string, ClinicExamPrice[]>;
 }
 
 // Load Google Maps script dynamically
@@ -57,7 +59,11 @@ const loadGoogleMapsScript = (): Promise<void> => {
   });
 };
 
-export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicClick }: ClinicMapProps) {
+const formatPrice = (price: number) => {
+  return price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicClick, selectedExams = [], clinicsPrices }: ClinicMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
@@ -68,6 +74,21 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
   const defaultCenter = userLocation 
     ? { lat: userLocation.lat, lng: userLocation.lng }
     : { lat: -19.4687, lng: -42.5365 }; // Ipatinga center
+
+  // Calculate total price for a clinic
+  const getClinicTotal = (clinicId: string): number | null => {
+    if (!clinicsPrices || selectedExams.length === 0) return null;
+    const prices = clinicsPrices.get(clinicId) || [];
+    
+    // Check if all selected exams have prices
+    const examPrices = selectedExams.map(exam => {
+      const price = prices.find(p => p.exam_type_id === exam.id);
+      return price?.price;
+    });
+
+    if (examPrices.some(p => p === undefined)) return null;
+    return examPrices.reduce((sum, p) => sum + (p || 0), 0);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -123,17 +144,19 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
         // Clinic markers with custom label overlays
         const clinicsWithCoords = clinics.filter(c => c.latitude && c.longitude);
         
-        // Custom Overlay class for clean labels
+        // Custom Overlay class for clean labels with price
         class ClinicLabelOverlay extends google.maps.OverlayView {
           private position: google.maps.LatLng;
           private div: HTMLDivElement | null = null;
           private name: string;
+          private total: number | null;
           private onClick: () => void;
 
-          constructor(position: google.maps.LatLng, name: string, onClick: () => void) {
+          constructor(position: google.maps.LatLng, name: string, total: number | null, onClick: () => void) {
             super();
             this.position = position;
             this.name = name;
+            this.total = total;
             this.onClick = onClick;
           }
 
@@ -142,8 +165,8 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
             this.div.style.cssText = `
               position: absolute;
               background: white;
-              padding: 6px 12px;
-              border-radius: 20px;
+              padding: 6px 10px;
+              border-radius: 12px;
               font-size: 11px;
               font-weight: 600;
               color: #16a34a;
@@ -153,8 +176,24 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
               cursor: pointer;
               transform: translate(-50%, -100%);
               margin-top: -8px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 2px;
             `;
-            this.div.textContent = this.name;
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = this.name;
+            nameSpan.style.cssText = 'font-size: 10px; color: #374151;';
+            this.div.appendChild(nameSpan);
+
+            if (this.total !== null) {
+              const priceSpan = document.createElement('span');
+              priceSpan.textContent = `R$ ${formatPrice(this.total)}`;
+              priceSpan.style.cssText = 'font-size: 12px; font-weight: 700; color: #16a34a;';
+              this.div.appendChild(priceSpan);
+            }
+
             this.div.addEventListener('click', this.onClick);
 
             const panes = this.getPanes();
@@ -181,6 +220,7 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
         
         clinicsWithCoords.forEach((clinic) => {
           const isSelected = clinic.id === selectedClinicId;
+          const total = getClinicTotal(clinic.id);
           
           // Create the marker (pin only)
           const marker = new google.maps.Marker({
@@ -204,10 +244,11 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
 
           markersRef.current.push(marker);
 
-          // Create custom label overlay
+          // Create custom label overlay with price
           const labelOverlay = new ClinicLabelOverlay(
             new google.maps.LatLng(clinic.latitude!, clinic.longitude!),
             clinic.name,
+            total,
             () => onClinicClick(clinic)
           );
           labelOverlay.setMap(map);
@@ -231,7 +272,7 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
       markersRef.current = [];
       overlaysRef.current = [];
     };
-  }, [clinics, userLocation, selectedClinicId]);
+  }, [clinics, userLocation, selectedClinicId, selectedExams, clinicsPrices]);
 
   // Handle clinic selection center
   useEffect(() => {

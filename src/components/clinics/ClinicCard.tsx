@@ -1,15 +1,31 @@
 import { motion } from 'framer-motion';
-import { MapPin, Clock, Phone, ChevronRight } from 'lucide-react';
-import { ClinicWithDistance } from '@/types';
+import { MapPin, Clock, ChevronRight } from 'lucide-react';
+import { ClinicWithDistance, ClinicExamPrice, ExamType } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface ClinicCardProps {
   clinic: ClinicWithDistance;
   onClick: () => void;
   selected?: boolean;
+  selectedExams?: ExamType[];
+  clinicPrices?: ClinicExamPrice[];
 }
 
-export function ClinicCard({ clinic, onClick, selected }: ClinicCardProps) {
+const formatPrice = (price: number) => {
+  return price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+export function ClinicCard({ clinic, onClick, selected, selectedExams = [], clinicPrices = [] }: ClinicCardProps) {
+  // Calculate total price for selected exams at this clinic
+  const examPrices = selectedExams.map(exam => {
+    const price = clinicPrices.find(p => p.exam_type_id === exam.id);
+    return { exam, price: price?.price };
+  });
+
+  const availableExams = examPrices.filter(ep => ep.price !== undefined);
+  const totalPrice = availableExams.reduce((sum, ep) => sum + (ep.price || 0), 0);
+  const hasAllPrices = availableExams.length === selectedExams.length && selectedExams.length > 0;
+
   return (
     <motion.button
       whileTap={{ scale: 0.98 }}
@@ -21,7 +37,7 @@ export function ClinicCard({ clinic, onClick, selected }: ClinicCardProps) {
           : 'border-border bg-card hover:border-primary/50'
       )}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className={cn(
@@ -48,10 +64,51 @@ export function ClinicCard({ clinic, onClick, selected }: ClinicCardProps) {
               <span className="text-xs">{clinic.opening_hours}</span>
             </div>
           )}
+
+          {/* Prices for selected exams */}
+          {selectedExams.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-border/50">
+              {hasAllPrices ? (
+                <>
+                  {examPrices.map(({ exam, price }) => (
+                    <div key={exam.id} className="flex justify-between text-xs py-0.5">
+                      <span className="text-muted-foreground truncate mr-2">{exam.name}</span>
+                      <span className="font-medium text-foreground">R$ {formatPrice(price!)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between mt-2 pt-2 border-t border-border/50">
+                    <span className="font-semibold text-sm">Total</span>
+                    <span className="font-bold text-primary text-sm">R$ {formatPrice(totalPrice)}</span>
+                  </div>
+                </>
+              ) : availableExams.length > 0 ? (
+                <>
+                  {examPrices.map(({ exam, price }) => (
+                    <div key={exam.id} className="flex justify-between text-xs py-0.5">
+                      <span className="text-muted-foreground truncate mr-2">{exam.name}</span>
+                      {price !== undefined ? (
+                        <span className="font-medium text-foreground">R$ {formatPrice(price)}</span>
+                      ) : (
+                        <span className="text-orange-500 text-xs">Indisponível</span>
+                      )}
+                    </div>
+                  ))}
+                  {availableExams.length > 0 && (
+                    <div className="flex justify-between mt-2 pt-2 border-t border-border/50">
+                      <span className="font-semibold text-sm">Subtotal</span>
+                      <span className="font-bold text-primary text-sm">R$ {formatPrice(totalPrice)}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-orange-500">Exames não disponíveis nesta clínica</p>
+              )}
+            </div>
+          )}
         </div>
         
         <ChevronRight className={cn(
-          'w-5 h-5 flex-shrink-0',
+          'w-5 h-5 flex-shrink-0 mt-1',
           selected ? 'text-primary' : 'text-muted-foreground'
         )} />
       </div>

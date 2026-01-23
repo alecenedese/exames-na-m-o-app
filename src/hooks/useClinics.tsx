@@ -90,12 +90,42 @@ export function useClinics() {
     return data as unknown as ClinicExamPrice[];
   };
 
+  // Fetch prices for selected exams across all clinics
+  const getClinicsPricesForExams = async (examTypeIds: string[]): Promise<Map<string, ClinicExamPrice[]>> => {
+    if (examTypeIds.length === 0) return new Map();
+
+    const { data, error } = await supabase
+      .from('clinic_exam_prices')
+      .select(`
+        *,
+        exam_type:exam_types(*)
+      `)
+      .in('exam_type_id', examTypeIds)
+      .eq('is_available', true);
+
+    if (error) {
+      console.error('Error fetching clinic prices for exams:', error);
+      return new Map();
+    }
+
+    // Group by clinic_id
+    const pricesByClinic = new Map<string, ClinicExamPrice[]>();
+    (data as unknown as ClinicExamPrice[]).forEach(price => {
+      const existing = pricesByClinic.get(price.clinic_id) || [];
+      existing.push(price);
+      pricesByClinic.set(price.clinic_id, existing);
+    });
+
+    return pricesByClinic;
+  };
+
   return {
     clinics,
     loading,
     error,
     userLocation,
     getClinicExams,
+    getClinicsPricesForExams,
     refetch: fetchClinics,
   };
 }
