@@ -44,6 +44,7 @@ export interface ClinicExamPrice {
   exam_type_id: string;
   price: number;
   is_available: boolean;
+  requires_prescription: boolean;
 }
 
 export interface ClinicAppointment {
@@ -192,11 +193,13 @@ export function useClinicAdmin() {
     mutationFn: async ({ 
       exam_type_id, 
       price, 
-      is_available = true 
+      is_available = true,
+      requires_prescription = false
     }: { 
       exam_type_id: string; 
       price: number;
       is_available?: boolean;
+      requires_prescription?: boolean;
     }) => {
       if (!clinic?.id) throw new Error('Clínica não encontrada');
       
@@ -207,7 +210,8 @@ export function useClinicAdmin() {
           exam_type_id,
           price,
           is_available,
-        }, { 
+          requires_prescription,
+        } as any, { 
           onConflict: 'clinic_id,exam_type_id',
         })
         .select()
