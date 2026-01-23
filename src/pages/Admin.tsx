@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
@@ -8,7 +8,8 @@ import {
   Calendar,
   Loader2,
   Shield,
-  Home
+  Home,
+  Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,12 +22,23 @@ import { AdminClinicsTab } from "@/components/admin/AdminClinicsTab";
 import { AdminExamsTab } from "@/components/admin/AdminExamsTab";
 import { AdminPricesTab } from "@/components/admin/AdminPricesTab";
 import { AdminAppointmentsTab } from "@/components/admin/AdminAppointmentsTab";
+import { ClinicProfileTab } from "@/components/admin/ClinicProfileTab";
+import { ClinicPricesTab } from "@/components/admin/ClinicPricesTab";
+import { ClinicAppointmentsTab } from "@/components/admin/ClinicAppointmentsTab";
 
 const Admin = () => {
   const { user, loading: authLoading } = useAuth();
   const { isSuperAdmin, checkingAdmin } = useAdmin();
   const { isClinicOwner, isTrialPeriod, daysRemaining, loading: clinicLoading } = useClinicStatus();
-  const [activeTab, setActiveTab] = useState(isSuperAdmin ? "clinics" : "prices");
+  
+  const defaultTab = isSuperAdmin ? "clinics" : "profile";
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
+  useEffect(() => {
+    if (!checkingAdmin && !clinicLoading) {
+      setActiveTab(isSuperAdmin ? "clinics" : "profile");
+    }
+  }, [isSuperAdmin, checkingAdmin, clinicLoading]);
 
   if (authLoading || checkingAdmin || clinicLoading) {
     return (
@@ -66,20 +78,20 @@ const Admin = () => {
     { id: "appointments", label: "Agendamentos", icon: Calendar },
   ];
 
-  // Tabs for clinic owners (limited)
+  // Tabs for clinic owners
   const clinicTabs = [
+    { id: "profile", label: "Minha Clínica", icon: Settings },
     { id: "prices", label: "Meus Preços", icon: DollarSign },
     { id: "appointments", label: "Agendamentos", icon: Calendar },
   ];
 
   const tabs = isSuperAdmin ? superAdminTabs : clinicTabs;
-  const defaultTab = isSuperAdmin ? "clinics" : "prices";
 
   return (
     <MobileLayout>
       <div className="min-h-screen bg-background pb-6">
         {/* Trial Banner for Clinic Owners */}
-        {isClinicOwner && isTrialPeriod && (
+        {isClinicOwner && !isSuperAdmin && isTrialPeriod && (
           <TrialBanner daysRemaining={daysRemaining} />
         )}
 
@@ -111,15 +123,15 @@ const Admin = () => {
             <p className="mt-1 text-primary-foreground/80">
               {isSuperAdmin 
                 ? "Gerencie clínicas, exames e agendamentos" 
-                : "Gerencie seus preços e agendamentos"}
+                : "Gerencie sua clínica, preços e agendamentos"}
             </p>
           </motion.div>
         </div>
 
         {/* Tabs */}
         <div className="px-4 -mt-3">
-          <Tabs defaultValue={defaultTab} value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className={`grid w-full bg-card shadow-sm ${isSuperAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className={`grid w-full bg-card shadow-sm ${isSuperAdmin ? 'grid-cols-4' : 'grid-cols-3'}`}>
               {tabs.map((tab) => (
                 <TabsTrigger
                   key={tab.id}
@@ -132,7 +144,7 @@ const Admin = () => {
               ))}
             </TabsList>
 
-            {isSuperAdmin && (
+            {isSuperAdmin ? (
               <>
                 <TabsContent value="clinics" className="mt-4">
                   <AdminClinicsTab />
@@ -141,16 +153,30 @@ const Admin = () => {
                 <TabsContent value="exams" className="mt-4">
                   <AdminExamsTab />
                 </TabsContent>
+
+                <TabsContent value="prices" className="mt-4">
+                  <AdminPricesTab />
+                </TabsContent>
+
+                <TabsContent value="appointments" className="mt-4">
+                  <AdminAppointmentsTab />
+                </TabsContent>
+              </>
+            ) : (
+              <>
+                <TabsContent value="profile" className="mt-4">
+                  <ClinicProfileTab />
+                </TabsContent>
+
+                <TabsContent value="prices" className="mt-4">
+                  <ClinicPricesTab />
+                </TabsContent>
+
+                <TabsContent value="appointments" className="mt-4">
+                  <ClinicAppointmentsTab />
+                </TabsContent>
               </>
             )}
-
-            <TabsContent value="prices" className="mt-4">
-              <AdminPricesTab />
-            </TabsContent>
-
-            <TabsContent value="appointments" className="mt-4">
-              <AdminAppointmentsTab />
-            </TabsContent>
           </Tabs>
         </div>
       </div>
