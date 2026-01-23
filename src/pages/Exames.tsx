@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MobileLayout } from '@/components/layout/MobileLayout';
@@ -28,11 +28,12 @@ export default function Exames() {
   const [selectedExams, setSelectedExams] = useState<ExamType[]>([]);
   const [selectedClinic, setSelectedClinic] = useState<ClinicWithDistance | null>(null);
   const [clinicPrices, setClinicPrices] = useState<ClinicExamPrice[]>([]);
+  const [allClinicsPrices, setAllClinicsPrices] = useState<Map<string, ClinicExamPrice[]>>(new Map());
   const [viewMode, setViewMode] = useState<'list' | 'map'>('map');
   const [searchQuery, setSearchQuery] = useState('');
 
   const { exams, consultas, loading: loadingExams } = useExamTypes();
-  const { clinics, loading: loadingClinics, userLocation, getClinicExams } = useClinics();
+  const { clinics, loading: loadingClinics, userLocation, getClinicExams, getClinicsPricesForExams } = useClinics();
   const { createAppointment, openWhatsApp, loading: creatingAppointment } = useAppointments();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -47,6 +48,18 @@ export default function Exames() {
       exam.description?.toLowerCase().includes(query)
     );
   }, [currentExamTypes, searchQuery]);
+
+  // Fetch prices for all clinics when moving to clinics step
+  useEffect(() => {
+    if (step === 'clinics' && selectedExams.length > 0) {
+      const fetchAllPrices = async () => {
+        const examIds = selectedExams.map(e => e.id);
+        const prices = await getClinicsPricesForExams(examIds);
+        setAllClinicsPrices(prices);
+      };
+      fetchAllPrices();
+    }
+  }, [step, selectedExams]);
 
   const toggleExam = (exam: ExamType) => {
     setSelectedExams(prev => 
@@ -102,6 +115,10 @@ export default function Exames() {
   const totalPrice = clinicPrices
     .filter(p => selectedExams.some(e => e.id === p.exam_type_id))
     .reduce((sum, p) => sum + p.price, 0);
+
+  const formatPrice = (price: number) => {
+    return price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   return (
     <>
@@ -186,6 +203,8 @@ export default function Exames() {
                     userLocation={userLocation}
                     selectedClinicId={selectedClinic?.id}
                     onClinicClick={handleClinicSelect}
+                    selectedExams={selectedExams}
+                    clinicsPrices={allClinicsPrices}
                   />
                 </div>
               )}
@@ -203,6 +222,8 @@ export default function Exames() {
                       clinic={clinic}
                       selected={selectedClinic?.id === clinic.id}
                       onClick={() => handleClinicSelect(clinic)}
+                      selectedExams={selectedExams}
+                      clinicPrices={allClinicsPrices.get(clinic.id) || []}
                     />
                   ))
                 )}
@@ -224,13 +245,13 @@ export default function Exames() {
                   return (
                     <div key={exam.id} className="flex justify-between py-2 border-b last:border-0">
                       <span className="text-sm">{exam.name}</span>
-                      <span className="font-medium">R$ {price?.price?.toFixed(2) || '-'}</span>
+                      <span className="font-medium">R$ {price?.price ? formatPrice(price.price) : '-'}</span>
                     </div>
                   );
                 })}
                 <div className="flex justify-between pt-3 mt-2 border-t">
                   <span className="font-semibold">Total</span>
-                  <span className="font-bold text-primary">R$ {totalPrice.toFixed(2)}</span>
+                  <span className="font-bold text-primary">R$ {formatPrice(totalPrice)}</span>
                 </div>
               </div>
             </motion.div>
