@@ -100,13 +100,13 @@ export function ClinicPricesTab() {
   }
 
   const renderTable = (items: typeof exams) => (
-    <div className="rounded-md border">
+    <div className="rounded-md border -mx-2">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[50%]">Nome</TableHead>
-            <TableHead className="text-center w-[25%]">Preço (R$)</TableHead>
-            <TableHead className="text-center w-[25%]">Pedido Médico</TableHead>
+            <TableHead className="text-xs px-2">Nome</TableHead>
+            <TableHead className="text-center text-xs px-1 w-16">Preço</TableHead>
+            <TableHead className="text-center text-xs px-1 w-14">Pedido</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -124,39 +124,37 @@ export function ClinicPricesTab() {
               
               return (
                 <TableRow key={exam.id}>
-                  <TableCell className="font-medium py-3">
-                    <span className="text-sm">{exam.name}</span>
+                  <TableCell className="font-medium py-2 px-2">
+                    <span className="text-xs">{exam.name}</span>
                   </TableCell>
-                  <TableCell className="text-center py-3">
+                  <TableCell className="text-center py-2 px-1">
                     {isEditing ? (
-                      <div className="flex items-center gap-1 justify-center">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={editingPrice.price}
-                          onChange={(e) => setEditingPrice({ 
-                            examId: exam.id, 
-                            price: e.target.value 
-                          })}
-                          className="w-20 h-8 text-sm text-center"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleSavePrice(exam.id, editingPrice.price, requiresPrescription);
-                            } else if (e.key === 'Escape') {
-                              setEditingPrice(null);
-                            }
-                          }}
-                          onBlur={() => {
-                            if (editingPrice.price) {
-                              handleSavePrice(exam.id, editingPrice.price, requiresPrescription);
-                            } else {
-                              setEditingPrice(null);
-                            }
-                          }}
-                        />
-                      </div>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editingPrice.price}
+                        onChange={(e) => setEditingPrice({ 
+                          examId: exam.id, 
+                          price: e.target.value 
+                        })}
+                        className="w-16 h-7 text-xs text-center px-1"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSavePrice(exam.id, editingPrice.price, requiresPrescription);
+                          } else if (e.key === 'Escape') {
+                            setEditingPrice(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (editingPrice.price) {
+                            handleSavePrice(exam.id, editingPrice.price, requiresPrescription);
+                          } else {
+                            setEditingPrice(null);
+                          }
+                        }}
+                      />
                     ) : (
                       <span 
                         className="cursor-pointer"
@@ -166,34 +164,30 @@ export function ClinicPricesTab() {
                         })}
                       >
                         {priceData?.price 
-                          ? <span className="text-sm font-medium">{formatPriceBR(priceData.price)}</span>
-                          : <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-semibold">Definir</span>
+                          ? <span className="text-xs font-medium">{formatPriceBR(priceData.price)}</span>
+                          : <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">Definir</span>
                         }
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="text-center py-3">
-                    {priceData ? (
-                      <Select
-                        value={requiresPrescription ? "sim" : "nao"}
-                        onValueChange={(value) => setPrescription(
-                          exam.id, 
-                          priceData.price, 
-                          value === "sim"
-                        )}
-                        disabled={setExamPrice.isPending}
-                      >
-                        <SelectTrigger className="w-16 h-8 text-xs mx-auto">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background border shadow-lg z-50">
-                          <SelectItem value="nao">Não</SelectItem>
-                          <SelectItem value="sim">Sim</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">-</span>
-                    )}
+                  <TableCell className="text-center py-2 px-1">
+                    <Select
+                      value={requiresPrescription ? "sim" : "nao"}
+                      onValueChange={(value) => {
+                        if (priceData) {
+                          setPrescription(exam.id, priceData.price, value === "sim");
+                        }
+                      }}
+                      disabled={setExamPrice.isPending || !priceData}
+                    >
+                      <SelectTrigger className="w-12 h-7 text-[10px] px-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border shadow-lg z-50">
+                        <SelectItem value="nao" className="text-xs">Não</SelectItem>
+                        <SelectItem value="sim" className="text-xs">Sim</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                 </TableRow>
               );
@@ -205,55 +199,55 @@ export function ClinicPricesTab() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <DollarSign className="h-5 w-5 text-primary" />
-              Meus Preços - {clinic.name}
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2 px-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <DollarSign className="h-4 w-4 text-primary" />
+              Meus Preços
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Defina os preços e se precisa de pedido médico para cada serviço
+            <p className="text-xs text-muted-foreground">
+              Defina preços e pedido médico
             </p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 pb-3">
             <Tabs defaultValue="exames" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="exames" className="flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4" />
+              <TabsList className="grid w-full grid-cols-2 mb-3 h-9">
+                <TabsTrigger value="exames" className="flex items-center gap-1 text-xs">
+                  <ClipboardList className="h-3 w-3" />
                   Exames ({exams.length})
                 </TabsTrigger>
-                <TabsTrigger value="consultas" className="flex items-center gap-2">
-                  <Stethoscope className="h-4 w-4" />
+                <TabsTrigger value="consultas" className="flex items-center gap-1 text-xs">
+                  <Stethoscope className="h-3 w-3" />
                   Consultas ({consultas.length})
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="exames" className="space-y-4">
+              <TabsContent value="exames" className="space-y-3 mt-0">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Buscar exame..."
                     value={searchExams}
                     onChange={(e) => setSearchExams(e.target.value)}
-                    className="pl-10"
+                    className="pl-8 h-8 text-sm"
                   />
                 </div>
                 {renderTable(filteredExams)}
               </TabsContent>
 
-              <TabsContent value="consultas" className="space-y-4">
+              <TabsContent value="consultas" className="space-y-3 mt-0">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Buscar consulta..."
                     value={searchConsultas}
                     onChange={(e) => setSearchConsultas(e.target.value)}
-                    className="pl-10"
+                    className="pl-8 h-8 text-sm"
                   />
                 </div>
                 {renderTable(filteredConsultas)}
