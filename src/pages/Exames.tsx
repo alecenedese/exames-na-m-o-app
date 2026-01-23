@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -16,11 +16,15 @@ import { ExamType, ClinicWithDistance, ClinicExamPrice } from '@/types';
 import { cn } from '@/lib/utils';
 import { MapIcon, List, MessageCircle, Loader2, Search } from 'lucide-react';
 
+// Key for storing pending order in localStorage
+const PENDING_ORDER_KEY = 'pending_order';
+
 type Step = 'exams' | 'clinics' | 'confirm';
 type Category = 'exame' | 'consulta';
 
 export default function Exames() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [step, setStep] = useState<Step>('exams');
   const [category, setCategory] = useState<Category>(
     (searchParams.get('categoria') as Category) || 'exame'
@@ -32,11 +36,53 @@ export default function Exames() {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('map');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { exams, consultas, loading: loadingExams } = useExamTypes();
+  const { exams, consultas, loading: loadingExams, examTypes } = useExamTypes();
   const { clinics, loading: loadingClinics, userLocation, getClinicExams, getClinicsPricesForExams } = useClinics();
   const { createAppointment, openWhatsApp, loading: creatingAppointment } = useAppointments();
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Restore pending order after login
+  useEffect(() => {
+    const restorePendingOrder = async () => {
+      const pendingOrderStr = localStorage.getItem(PENDING_ORDER_KEY);
+      if (pendingOrderStr && user && examTypes.length > 0 && clinics.length > 0) {
+        try {
+          const pendingOrder = JSON.parse(pendingOrderStr);
+          
+          // Restore selected exams
+          const restoredExams = examTypes.filter(e => pendingOrder.examIds.includes(e.id));
+          if (restoredExams.length > 0) {
+            setSelectedExams(restoredExams);
+          }
+          
+          // Restore selected clinic
+          const restoredClinic = clinics.find(c => c.id === pendingOrder.clinicId);
+          if (restoredClinic) {
+            setSelectedClinic(restoredClinic);
+            const prices = await getClinicExams(restoredClinic.id);
+            setClinicPrices(prices);
+          }
+          
+          // Go to confirm step
+          setStep('confirm');
+          
+          // Clear the pending order
+          localStorage.removeItem(PENDING_ORDER_KEY);
+          
+          toast({
+            title: 'Pedido restaurado!',
+            description: 'Continue para finalizar seu agendamento',
+          });
+        } catch (err) {
+          console.error('Error restoring pending order:', err);
+          localStorage.removeItem(PENDING_ORDER_KEY);
+        }
+      }
+    };
+    
+    restorePendingOrder();
+  }, [user, examTypes, clinics]);
 
   const currentExamTypes = category === 'exame' ? exams : consultas;
   
@@ -79,11 +125,20 @@ export default function Exames() {
     if (!selectedClinic || selectedExams.length === 0) return;
 
     if (!user) {
+      // Save the current order to localStorage
+      const pendingOrder = {
+        examIds: selectedExams.map(e => e.id),
+        clinicId: selectedClinic.id,
+      };
+      localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify(pendingOrder));
+      
       toast({
-        title: 'Faça login',
-        description: 'Você precisa estar logado para agendar',
-        variant: 'destructive',
+        title: 'Faça login para continuar',
+        description: 'Você será redirecionado para a tela de login',
       });
+      
+      // Redirect to login
+      navigate('/auth');
       return;
     }
 
