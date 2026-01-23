@@ -51,9 +51,9 @@ const Index = () => {
   return (
     <>
       <MobileLayout showHeader={false}>
-        <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
+        <div className="min-h-screen bg-background">
           {/* Hero Section */}
-          <div className="flex flex-col items-center px-4 pb-6 pt-8">
+          <div className="flex flex-col items-center bg-white px-4 pb-6 pt-8">
             <motion.img
               src={logoHero}
               alt="Exame na Mão - Consultas e Exames, tudo em um só lugar pertinho da sua casa"
