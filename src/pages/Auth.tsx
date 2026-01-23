@@ -5,18 +5,12 @@ import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, Building2, Phone, MapPin, Fil
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { OpeningHoursSelector, OpeningHoursState, initialOpeningHours, formatOpeningHoursToString } from '@/components/OpeningHoursSelector';
 
 type AccountType = 'user' | 'clinic';
-
-interface OpeningHoursState {
-  weekdays: boolean;
-  saturday: boolean;
-  sunday: boolean;
-}
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -33,11 +27,7 @@ export default function Auth() {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  const [openingHours, setOpeningHours] = useState<OpeningHoursState>({
-    weekdays: false,
-    saturday: false,
-    sunday: false,
-  });
+  const [openingHours, setOpeningHours] = useState<OpeningHoursState>(initialOpeningHours);
   
   const { signIn, signUp, signUpClinic } = useAuth();
   const { toast } = useToast();
@@ -59,14 +49,6 @@ export default function Auth() {
       .replace(/^(\d{2})(\d)/, '($1) $2')
       .replace(/(\d{5})(\d)/, '$1-$2')
       .slice(0, 15);
-  };
-
-  const formatOpeningHoursString = (): string => {
-    const parts: string[] = [];
-    if (openingHours.weekdays) parts.push('Segunda a Sexta');
-    if (openingHours.saturday) parts.push('Sábado');
-    if (openingHours.sunday) parts.push('Domingo');
-    return parts.join(', ');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -134,7 +116,7 @@ export default function Auth() {
             address,
             phone: phone.replace(/\D/g, ''),
             whatsapp: whatsapp.replace(/\D/g, ''),
-            openingHours: formatOpeningHoursString(),
+            openingHours: formatOpeningHoursToString(openingHours),
           });
 
           if (error) {
@@ -321,47 +303,10 @@ export default function Auth() {
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <Label>Horário de funcionamento</Label>
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="weekdays"
-                            checked={openingHours.weekdays}
-                            onCheckedChange={(checked) => 
-                              setOpeningHours(prev => ({ ...prev, weekdays: checked === true }))
-                            }
-                          />
-                          <label htmlFor="weekdays" className="text-sm cursor-pointer">
-                            Segunda a Sexta
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="saturday"
-                            checked={openingHours.saturday}
-                            onCheckedChange={(checked) => 
-                              setOpeningHours(prev => ({ ...prev, saturday: checked === true }))
-                            }
-                          />
-                          <label htmlFor="saturday" className="text-sm cursor-pointer">
-                            Sábado
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="sunday"
-                            checked={openingHours.sunday}
-                            onCheckedChange={(checked) => 
-                              setOpeningHours(prev => ({ ...prev, sunday: checked === true }))
-                            }
-                          />
-                          <label htmlFor="sunday" className="text-sm cursor-pointer">
-                            Domingo
-                          </label>
-                        </div>
-                      </div>
-                    </div>
+                    <OpeningHoursSelector 
+                      value={openingHours}
+                      onChange={setOpeningHours}
+                    />
                   </>
                 )}
               </motion.div>
