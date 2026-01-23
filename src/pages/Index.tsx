@@ -7,6 +7,7 @@ import { MobileLayout } from "@/components/layout/MobileLayout";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
+import logoHero from "@/assets/logo-hero.png";
 
 const Index = () => {
   const { user } = useAuth();
@@ -52,52 +53,43 @@ const Index = () => {
       <MobileLayout showHeader={false}>
         <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
           {/* Hero Section */}
-          <div className="relative overflow-hidden bg-primary px-4 pb-8 pt-12 text-primary-foreground">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+          <div className="flex flex-col items-center px-4 pb-6 pt-8">
+            <motion.img
+              src={logoHero}
+              alt="Exame na Mão - Consultas e Exames, tudo em um só lugar pertinho da sua casa"
+              className="mb-6 w-64 max-w-full"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
-              className="relative z-10"
-            >
-              <h1 className="mb-2 text-3xl font-bold">
-                Exames na Mão
-              </h1>
-              <p className="mb-6 text-primary-foreground/80">
-                Agende exames e consultas ocupacionais em Ipatinga-MG
-              </p>
+            />
 
-              {!user ? (
-                <div className="flex gap-3">
-                  <Button asChild variant="secondary" className="flex-1">
-                    <Link to="/auth">Entrar</Link>
-                  </Button>
-                  <Button asChild variant="outline" className="flex-1 border-white/50 bg-white/10 text-white hover:bg-white/20">
-                    <Link to="/auth?modo=cadastro">Cadastrar</Link>
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {isSuperAdmin && (
-                    <Button asChild variant="outline" className="w-full border-white/50 bg-white/10 text-white hover:bg-white/20">
-                      <Link to="/admin">
-                        <Shield className="mr-2 h-4 w-4" />
-                        Painel Admin
-                      </Link>
-                    </Button>
-                  )}
-                  <Button asChild variant="secondary" className="w-full">
-                    <Link to="/exames">
-                      Agendar Agora
-                      <ChevronRight className="ml-2 h-4 w-4" />
+            {!user ? (
+              <div className="flex w-full max-w-xs gap-3">
+                <Button asChild className="flex-1">
+                  <Link to="/auth">Entrar</Link>
+                </Button>
+                <Button asChild variant="outline" className="flex-1">
+                  <Link to="/auth?modo=cadastro">Cadastrar</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="w-full max-w-xs space-y-3">
+                {isSuperAdmin && (
+                  <Button asChild variant="outline" className="w-full">
+                    <Link to="/admin">
+                      <Shield className="mr-2 h-4 w-4" />
+                      Painel Admin
                     </Link>
                   </Button>
-                </div>
-              )}
-            </motion.div>
-
-            {/* Decorative circles */}
-            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary-foreground/10" />
-            <div className="absolute -bottom-20 -left-10 h-60 w-60 rounded-full bg-primary-foreground/5" />
+                )}
+                <Button asChild className="w-full">
+                  <Link to="/exames">
+                    Agendar Agora
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Categories */}
