@@ -55,6 +55,10 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
+    // Check if there's a pending order to return to
+    const pendingOrder = localStorage.getItem('pending_order');
+    const redirectTo = pendingOrder ? '/exames' : '/';
+
     try {
       if (isLogin) {
         const { error } = await signIn(email, password);
@@ -67,7 +71,7 @@ export default function Auth() {
             variant: 'destructive',
           });
         } else {
-          navigate('/');
+          navigate(redirectTo);
         }
       } else {
         if (accountType === 'user') {
@@ -93,9 +97,9 @@ export default function Auth() {
           } else {
             toast({
               title: 'Cadastro realizado!',
-              description: 'Você já pode fazer login',
+              description: 'Você já pode continuar',
             });
-            navigate('/');
+            navigate(redirectTo);
           }
         } else {
           // Clinic registration
@@ -132,7 +136,7 @@ export default function Auth() {
               title: 'Cadastro realizado!',
               description: 'Bem-vindo ao Exames na Mão!',
             });
-            navigate('/');
+            navigate(redirectTo);
           }
         }
       }
