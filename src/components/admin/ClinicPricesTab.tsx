@@ -3,16 +3,12 @@ import { motion } from "framer-motion";
 import { 
   DollarSign, 
   Loader2,
-  Check,
-  X,
   Search,
   Stethoscope,
   ClipboardList
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -65,32 +61,23 @@ export function ClinicPricesTab() {
     return clinicPrices?.find(p => p.exam_type_id === examId);
   };
 
-  const handleSavePrice = (examId: string, price: string, isAvailable: boolean = true, requiresPrescription: boolean = false) => {
+  const handleSavePrice = (examId: string, price: string, requiresPrescription: boolean = false) => {
     if (price) {
       setExamPrice.mutate({
         exam_type_id: examId,
-        price: parseFloat(price),
-        is_available: isAvailable,
+        price: parseFloat(price.replace(',', '.')),
+        is_available: true, // If price is set, it's available
         requires_prescription: requiresPrescription,
       });
       setEditingPrice(null);
     }
   };
 
-  const toggleAvailability = (examId: string, currentPrice: number, currentAvailable: boolean, requiresPrescription: boolean) => {
+  const setPrescription = (examId: string, currentPrice: number, requiresPrescription: boolean) => {
     setExamPrice.mutate({
       exam_type_id: examId,
       price: currentPrice,
-      is_available: !currentAvailable,
-      requires_prescription: requiresPrescription,
-    });
-  };
-
-  const setPrescription = (examId: string, currentPrice: number, isAvailable: boolean, requiresPrescription: boolean) => {
-    setExamPrice.mutate({
-      exam_type_id: examId,
-      price: currentPrice,
-      is_available: isAvailable,
+      is_available: true,
       requires_prescription: requiresPrescription,
     });
   };
@@ -112,22 +99,20 @@ export function ClinicPricesTab() {
     );
   }
 
-  const renderTable = (items: typeof exams, search: string) => (
-    <div className="rounded-md border overflow-x-auto">
+  const renderTable = (items: typeof exams) => (
+    <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead className="text-right">Preço (R$)</TableHead>
-            <TableHead className="text-center">Pedido Médico</TableHead>
-            <TableHead className="text-center">Disponível</TableHead>
-            <TableHead className="text-right">Ação</TableHead>
+            <TableHead className="w-[50%]">Nome</TableHead>
+            <TableHead className="text-center w-[25%]">Preço (R$)</TableHead>
+            <TableHead className="text-center w-[25%]">Pedido Médico</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+              <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
                 Nenhum item encontrado
               </TableCell>
             </TableRow>
@@ -139,56 +124,66 @@ export function ClinicPricesTab() {
               
               return (
                 <TableRow key={exam.id}>
-                  <TableCell className="font-medium">
-                    <div>
-                      <span>{exam.name}</span>
-                      {exam.description && (
-                        <p className="text-xs text-muted-foreground">{exam.description}</p>
-                      )}
-                    </div>
+                  <TableCell className="font-medium py-3">
+                    <span className="text-sm">{exam.name}</span>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-center py-3">
                     {isEditing ? (
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={editingPrice.price}
-                        onChange={(e) => setEditingPrice({ 
-                          examId: exam.id, 
-                          price: e.target.value 
-                        })}
-                        className="w-24 ml-auto"
-                        autoFocus
-                      />
+                      <div className="flex items-center gap-1 justify-center">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={editingPrice.price}
+                          onChange={(e) => setEditingPrice({ 
+                            examId: exam.id, 
+                            price: e.target.value 
+                          })}
+                          className="w-20 h-8 text-sm text-center"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSavePrice(exam.id, editingPrice.price, requiresPrescription);
+                            } else if (e.key === 'Escape') {
+                              setEditingPrice(null);
+                            }
+                          }}
+                          onBlur={() => {
+                            if (editingPrice.price) {
+                              handleSavePrice(exam.id, editingPrice.price, requiresPrescription);
+                            } else {
+                              setEditingPrice(null);
+                            }
+                          }}
+                        />
+                      </div>
                     ) : (
                       <span 
-                        className="cursor-pointer hover:underline"
+                        className="cursor-pointer"
                         onClick={() => setEditingPrice({ 
                           examId: exam.id, 
                           price: priceData?.price?.toString() || "" 
                         })}
                       >
                         {priceData?.price 
-                          ? `R$ ${formatPriceBR(priceData.price)}`
-                          : <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-medium">Definir preço</span>
+                          ? <span className="text-sm font-medium">{formatPriceBR(priceData.price)}</span>
+                          : <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-semibold">Definir</span>
                         }
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="text-center py-3">
                     {priceData ? (
                       <Select
                         value={requiresPrescription ? "sim" : "nao"}
                         onValueChange={(value) => setPrescription(
                           exam.id, 
                           priceData.price, 
-                          priceData.is_available,
                           value === "sim"
                         )}
                         disabled={setExamPrice.isPending}
                       >
-                        <SelectTrigger className="w-16 h-8 text-xs">
+                        <SelectTrigger className="w-16 h-8 text-xs mx-auto">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-background border shadow-lg z-50">
@@ -198,65 +193,6 @@ export function ClinicPricesTab() {
                       </Select>
                     ) : (
                       <span className="text-muted-foreground text-xs">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {priceData ? (
-                      <Switch
-                        checked={priceData.is_available}
-                        onCheckedChange={() => toggleAvailability(
-                          exam.id, 
-                          priceData.price, 
-                          priceData.is_available,
-                          requiresPrescription
-                        )}
-                        disabled={setExamPrice.isPending}
-                      />
-                    ) : (
-                      <span className="text-muted-foreground text-xs">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {isEditing ? (
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-green-600"
-                          onClick={() => handleSavePrice(
-                            exam.id, 
-                            editingPrice.price,
-                            priceData?.is_available ?? true,
-                            requiresPrescription
-                          )}
-                          disabled={!editingPrice.price || setExamPrice.isPending}
-                        >
-                          {setExamPrice.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Check className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          onClick={() => setEditingPrice(null)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setEditingPrice({ 
-                          examId: exam.id, 
-                          price: priceData?.price?.toString() || "" 
-                        })}
-                      >
-                        Editar
-                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
@@ -307,7 +243,7 @@ export function ClinicPricesTab() {
                     className="pl-10"
                   />
                 </div>
-                {renderTable(filteredExams, searchExams)}
+                {renderTable(filteredExams)}
               </TabsContent>
 
               <TabsContent value="consultas" className="space-y-4">
@@ -320,7 +256,7 @@ export function ClinicPricesTab() {
                     className="pl-10"
                   />
                 </div>
-                {renderTable(filteredConsultas, searchConsultas)}
+                {renderTable(filteredConsultas)}
               </TabsContent>
             </Tabs>
           </CardContent>
