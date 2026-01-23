@@ -80,16 +80,17 @@ const Index = () => {
                   <Link to="/auth?modo=cadastro">Cadastrar</Link>
                 </Button>
               </div>
+            ) : isClinicOwner || isSuperAdmin ? (
+              <div className="w-full max-w-xs">
+                <Button asChild className="w-full">
+                  <Link to="/admin">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Painel Admin da Clínica
+                  </Link>
+                </Button>
+              </div>
             ) : (
-              <div className="w-full max-w-xs space-y-3">
-                {isSuperAdmin && (
-                  <Button asChild variant="outline" className="w-full">
-                    <Link to="/admin">
-                      <Shield className="mr-2 h-4 w-4" />
-                      Painel Admin
-                    </Link>
-                  </Button>
-                )}
+              <div className="w-full max-w-xs">
                 <Button asChild className="w-full">
                   <Link to="/exames">
                     Agendar Agora
