@@ -13,8 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MobileLayout } from "@/components/layout/MobileLayout";
+import { TrialBanner } from "@/components/TrialBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useClinicStatus } from "@/hooks/useClinicStatus";
 import { AdminClinicsTab } from "@/components/admin/AdminClinicsTab";
 import { AdminExamsTab } from "@/components/admin/AdminExamsTab";
 import { AdminPricesTab } from "@/components/admin/AdminPricesTab";
@@ -23,9 +25,10 @@ import { AdminAppointmentsTab } from "@/components/admin/AdminAppointmentsTab";
 const Admin = () => {
   const { user, loading: authLoading } = useAuth();
   const { isSuperAdmin, checkingAdmin } = useAdmin();
-  const [activeTab, setActiveTab] = useState("clinics");
+  const { isClinicOwner, isTrialPeriod, daysRemaining, loading: clinicLoading } = useClinicStatus();
+  const [activeTab, setActiveTab] = useState(isSuperAdmin ? "clinics" : "prices");
 
-  if (authLoading || checkingAdmin) {
+  if (authLoading || checkingAdmin || clinicLoading) {
     return (
       <MobileLayout>
         <div className="flex h-[60vh] items-center justify-center">
@@ -39,7 +42,9 @@ const Admin = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  if (!isSuperAdmin) {
+  const hasAccess = isSuperAdmin || isClinicOwner;
+
+  if (!hasAccess) {
     return (
       <MobileLayout>
         <div className="flex h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
@@ -53,16 +58,31 @@ const Admin = () => {
     );
   }
 
-  const tabs = [
+  // Tabs for super admin (all tabs)
+  const superAdminTabs = [
     { id: "clinics", label: "Clínicas", icon: Building2 },
     { id: "exams", label: "Exames", icon: ClipboardList },
     { id: "prices", label: "Preços", icon: DollarSign },
     { id: "appointments", label: "Agendamentos", icon: Calendar },
   ];
 
+  // Tabs for clinic owners (limited)
+  const clinicTabs = [
+    { id: "prices", label: "Meus Preços", icon: DollarSign },
+    { id: "appointments", label: "Agendamentos", icon: Calendar },
+  ];
+
+  const tabs = isSuperAdmin ? superAdminTabs : clinicTabs;
+  const defaultTab = isSuperAdmin ? "clinics" : "prices";
+
   return (
     <MobileLayout>
       <div className="min-h-screen bg-background pb-6">
+        {/* Trial Banner for Clinic Owners */}
+        {isClinicOwner && isTrialPeriod && (
+          <TrialBanner daysRemaining={daysRemaining} />
+        )}
+
         {/* Header */}
         <div className="bg-primary px-4 pb-6 pt-8 text-primary-foreground">
           <motion.div
@@ -72,7 +92,9 @@ const Admin = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="h-6 w-6" />
-                <h1 className="text-2xl font-bold">Painel Admin</h1>
+                <h1 className="text-2xl font-bold">
+                  {isSuperAdmin ? "Painel Admin" : "Painel da Clínica"}
+                </h1>
               </div>
               <Button
                 asChild
@@ -87,15 +109,17 @@ const Admin = () => {
               </Button>
             </div>
             <p className="mt-1 text-primary-foreground/80">
-              Gerencie clínicas, exames e agendamentos
+              {isSuperAdmin 
+                ? "Gerencie clínicas, exames e agendamentos" 
+                : "Gerencie seus preços e agendamentos"}
             </p>
           </motion.div>
         </div>
 
         {/* Tabs */}
         <div className="px-4 -mt-3">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4 bg-card shadow-sm">
+          <Tabs defaultValue={defaultTab} value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className={`grid w-full bg-card shadow-sm ${isSuperAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
               {tabs.map((tab) => (
                 <TabsTrigger
                   key={tab.id}
@@ -108,13 +132,17 @@ const Admin = () => {
               ))}
             </TabsList>
 
-            <TabsContent value="clinics" className="mt-4">
-              <AdminClinicsTab />
-            </TabsContent>
+            {isSuperAdmin && (
+              <>
+                <TabsContent value="clinics" className="mt-4">
+                  <AdminClinicsTab />
+                </TabsContent>
 
-            <TabsContent value="exams" className="mt-4">
-              <AdminExamsTab />
-            </TabsContent>
+                <TabsContent value="exams" className="mt-4">
+                  <AdminExamsTab />
+                </TabsContent>
+              </>
+            )}
 
             <TabsContent value="prices" className="mt-4">
               <AdminPricesTab />
