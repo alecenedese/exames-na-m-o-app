@@ -5,13 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { TrialBanner } from "@/components/TrialBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useClinicStatus } from "@/hooks/useClinicStatus";
 import logoHero from "@/assets/logo-hero.png";
 
 const Index = () => {
   const { user } = useAuth();
   const { isSuperAdmin } = useAdmin();
+  const { isClinicOwner, isTrialPeriod, daysRemaining } = useClinicStatus();
 
   const categories = [
     {
@@ -52,6 +55,11 @@ const Index = () => {
     <>
       <MobileLayout showHeader={false}>
         <div className="min-h-screen bg-background">
+          {/* Trial Banner for Clinic Owners */}
+          {user && isClinicOwner && isTrialPeriod && (
+            <TrialBanner daysRemaining={daysRemaining} />
+          )}
+
           {/* Hero Section */}
           <div className="flex flex-col items-center bg-white px-4 pb-6 pt-8">
             <motion.img
