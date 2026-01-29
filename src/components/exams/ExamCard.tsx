@@ -16,42 +16,48 @@ export function ExamCard({ exam, selected, price, onToggle }: ExamCardProps) {
       whileTap={{ scale: 0.98 }}
       onClick={onToggle}
       className={cn(
-        'w-full p-4 rounded-xl border-2 text-left transition-all',
+        'w-full p-4 rounded-2xl text-left transition-all relative overflow-hidden',
         selected 
-          ? 'border-primary bg-primary-light' 
-          : 'border-border bg-card hover:border-primary/50'
+          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25' 
+          : 'bg-card border border-border hover:border-primary/30 shadow-sm'
       )}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center gap-3">
+        {/* Checkbox */}
+        <div className={cn(
+          'w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all',
+          selected 
+            ? 'bg-white/20' 
+            : 'border-2 border-muted-foreground/30'
+        )}>
+          {selected && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
+        </div>
+        
         <div className="flex-1 min-w-0">
           <h3 className={cn(
             'font-semibold text-sm',
-            selected ? 'text-primary-dark' : 'text-foreground'
+            selected ? 'text-white' : 'text-foreground'
           )}>
             {exam.name}
           </h3>
           {exam.description && (
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+            <p className={cn(
+              'text-xs mt-0.5 line-clamp-1',
+              selected ? 'text-white/70' : 'text-muted-foreground'
+            )}>
               {exam.description}
             </p>
           )}
-          {price !== undefined && (
-            <p className={cn(
-              'text-sm font-bold mt-2',
-              selected ? 'text-primary' : 'text-foreground'
-            )}>
-              R$ {price.toFixed(2)}
-            </p>
-          )}
         </div>
-        <div className={cn(
-          'w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all',
-          selected 
-            ? 'bg-primary border-primary' 
-            : 'border-muted-foreground/30'
-        )}>
-          {selected && <Check className="w-4 h-4 text-primary-foreground" />}
-        </div>
+        
+        {price !== undefined && (
+          <span className={cn(
+            'text-sm font-bold flex-shrink-0',
+            selected ? 'text-white' : 'text-primary'
+          )}>
+            R$ {price.toFixed(2)}
+          </span>
+        )}
       </div>
     </motion.button>
   );
