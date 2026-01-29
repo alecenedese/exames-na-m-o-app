@@ -85,7 +85,7 @@ const Index = () => {
                 alt="Exame na Mão"
                 className="mb-4 w-32"
               />
-              <p className="mb-6 text-center text-sm text-slate-300">
+              <p className="mb-6 text-center text-sm text-white/90">
                 Consultas e exames pertinho de você
               </p>
 
