@@ -164,23 +164,37 @@ export function ClinicMap({ clinics, userLocation, selectedClinicId, onClinicCli
             this.div = document.createElement('div');
             this.div.style.cssText = `
               position: absolute;
-              background: white;
-              padding: 6px 10px;
-              border-radius: 12px;
+              background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+              padding: 8px 12px;
+              border-radius: 16px;
               font-size: 11px;
               font-weight: 600;
               color: #16a34a;
-              box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+              box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1);
               white-space: nowrap;
-              border: 2px solid #16a34a;
+              border: 2px solid #22c55e;
               cursor: pointer;
               transform: translate(-50%, -100%);
               margin-top: -8px;
               display: flex;
               flex-direction: column;
               align-items: center;
-              gap: 2px;
+              gap: 4px;
+              transition: transform 0.2s ease, box-shadow 0.2s ease;
             `;
+            
+            this.div.onmouseenter = () => {
+              if (this.div) {
+                this.div.style.transform = 'translate(-50%, -100%) scale(1.05)';
+                this.div.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2), 0 3px 6px rgba(0,0,0,0.12)';
+              }
+            };
+            this.div.onmouseleave = () => {
+              if (this.div) {
+                this.div.style.transform = 'translate(-50%, -100%)';
+                this.div.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1)';
+              }
+            };
             
             const nameSpan = document.createElement('span');
             nameSpan.textContent = this.name;
