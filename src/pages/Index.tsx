@@ -1,8 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Stethoscope, ClipboardList, MapPin, Clock, Phone, ChevronRight, Shield } from "lucide-react";
+import { Stethoscope, ClipboardList, MapPin, Clock, MessageCircle, ChevronRight, Shield, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { TrialBanner } from "@/components/TrialBanner";
@@ -19,35 +18,44 @@ const Index = () => {
   const categories = [
     {
       title: "Exames",
-      description: "Admissional, demissional, toxicológico e mais",
+      subtitle: "Admissional, demissional, toxicológico",
       icon: ClipboardList,
-      color: "bg-primary",
+      gradient: "from-emerald-500 to-emerald-600",
       href: "/exames?categoria=exame",
     },
     {
       title: "Consultas",
-      description: "Clínico geral, oftalmologista, psicólogo",
+      subtitle: "Clínico geral, oftalmologista, psicólogo",
       icon: Stethoscope,
-      color: "bg-secondary",
+      gradient: "from-amber-500 to-orange-500",
       href: "/exames?categoria=consulta",
     },
   ];
 
-  const features = [
+  const steps = [
+    {
+      icon: Search,
+      number: "1",
+      title: "Escolha o exame",
+      description: "Selecione o que você precisa",
+    },
     {
       icon: MapPin,
-      title: "Clínicas Próximas",
-      description: "Encontre as clínicas mais perto de você",
+      number: "2",
+      title: "Veja as clínicas",
+      description: "Compare preços e localização",
     },
     {
       icon: Clock,
-      title: "Agendamento Rápido",
-      description: "Agende em poucos minutos",
+      number: "3",
+      title: "Agende rápido",
+      description: "Em poucos minutos",
     },
     {
-      icon: Phone,
-      title: "Via WhatsApp",
-      description: "Confirmação direta com a clínica",
+      icon: MessageCircle,
+      number: "4",
+      title: "Confirme no WhatsApp",
+      description: "Direto com a clínica",
     },
   ];
 
@@ -60,110 +68,119 @@ const Index = () => {
             <TrialBanner daysRemaining={daysRemaining} />
           )}
 
-          {/* Hero Section */}
-          <div className="flex flex-col items-center bg-white px-4 pb-6 pt-8">
-            <motion.img
-              src={logoHero}
-              alt="Exame na Mão - Consultas e Exames, tudo em um só lugar pertinho da sua casa"
-              className="mb-6 w-64 max-w-full"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
+          {/* Hero Section - Dark with gradient */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-5 pb-8 pt-10">
+            {/* Decorative circles */}
+            <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
+            <div className="absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-secondary/20 blur-3xl" />
+            
+            <motion.div
+              className="relative z-10 flex flex-col items-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-            />
+            >
+              <img
+                src={logoHero}
+                alt="Exame na Mão"
+                className="mb-4 w-32"
+              />
+              <p className="mb-6 text-center text-sm text-slate-300">
+                Consultas e exames pertinho de você
+              </p>
 
-            {!user ? (
-              <div className="flex w-full max-w-xs gap-3">
-                <Button asChild className="flex-1">
-                  <Link to="/auth">Entrar</Link>
-                </Button>
-                <Button asChild variant="outline" className="flex-1">
-                  <Link to="/auth?modo=cadastro">Cadastrar</Link>
-                </Button>
-              </div>
-            ) : isClinicOwner || isSuperAdmin ? (
-              <div className="w-full max-w-xs">
-                <Button asChild className="w-full">
+              {!user ? (
+                <div className="flex w-full max-w-xs gap-3">
+                  <Button asChild size="lg" className="flex-1 bg-primary hover:bg-primary/90 font-semibold shadow-lg shadow-primary/25">
+                    <Link to="/auth">Entrar</Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline" className="flex-1 border-slate-600 bg-transparent text-white hover:bg-slate-800 font-semibold">
+                    <Link to="/auth?modo=cadastro">Cadastrar</Link>
+                  </Button>
+                </div>
+              ) : isClinicOwner || isSuperAdmin ? (
+                <Button asChild size="lg" className="w-full max-w-xs bg-primary hover:bg-primary/90 font-semibold shadow-lg shadow-primary/25">
                   <Link to="/admin">
-                    <Shield className="mr-2 h-4 w-4" />
-                    Painel Admin da Clínica
+                    <Shield className="mr-2 h-5 w-5" />
+                    Painel da Clínica
                   </Link>
                 </Button>
-              </div>
-            ) : (
-              <div className="w-full max-w-xs">
-                <Button asChild className="w-full">
+              ) : (
+                <Button asChild size="lg" className="w-full max-w-xs bg-primary hover:bg-primary/90 font-semibold shadow-lg shadow-primary/25">
                   <Link to="/exames">
                     Agendar Agora
-                    <ChevronRight className="ml-2 h-4 w-4" />
+                    <ChevronRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-              </div>
-            )}
+              )}
+            </motion.div>
           </div>
 
-          {/* Categories */}
+          {/* Categories - Large touch targets */}
           <div className="px-4 py-6">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">
+            <h2 className="mb-4 text-base font-bold text-foreground">
               O que você precisa?
             </h2>
-            <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {categories.map((category, index) => (
                 <motion.div
                   key={category.title}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.1 }}
                 >
                   <Link to={category.href}>
-                    <Card className="overflow-hidden transition-all hover:shadow-md active:scale-[0.98]">
-                      <CardContent className="flex items-center gap-4 p-4">
-                        <div className={`flex h-14 w-14 items-center justify-center rounded-xl ${category.color}`}>
-                          <category.icon className="h-7 w-7 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-foreground">
-                            {category.title}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {category.description}
-                          </p>
-                        </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </CardContent>
-                    </Card>
+                    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${category.gradient} p-4 shadow-lg transition-transform active:scale-[0.97]`}>
+                      <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-white/10" />
+                      <category.icon className="mb-3 h-8 w-8 text-white" />
+                      <h3 className="text-lg font-bold text-white">
+                        {category.title}
+                      </h3>
+                      <p className="mt-1 text-xs text-white/80 line-clamp-2">
+                        {category.subtitle}
+                      </p>
+                    </div>
                   </Link>
                 </motion.div>
               ))}
             </div>
           </div>
 
-          {/* Features */}
-          <div className="px-4 pb-24">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">
+          {/* How it works - Timeline style */}
+          <div className="px-4 pb-28">
+            <h2 className="mb-4 text-base font-bold text-foreground">
               Como funciona
             </h2>
-            <div className="grid gap-3">
-              {features.map((feature, index) => (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 + index * 0.1 }}
-                  className="flex items-center gap-3 rounded-lg bg-muted/50 p-3"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <feature.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-foreground">
-                      {feature.title}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      {feature.description}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
+            <div className="relative">
+              {/* Vertical line */}
+              <div className="absolute left-5 top-2 h-[calc(100%-20px)] w-0.5 bg-gradient-to-b from-primary via-primary/50 to-transparent" />
+              
+              <div className="space-y-4">
+                {steps.map((step, index) => (
+                  <motion.div
+                    key={step.title}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + index * 0.1 }}
+                    className="flex items-start gap-4"
+                  >
+                    <div className="relative z-10 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white shadow-md">
+                      {step.number}
+                    </div>
+                    <div className="flex-1 rounded-xl bg-card p-3 shadow-sm border">
+                      <div className="flex items-center gap-2">
+                        <step.icon className="h-4 w-4 text-primary" />
+                        <h3 className="text-sm font-semibold text-foreground">
+                          {step.title}
+                        </h3>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {step.description}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
