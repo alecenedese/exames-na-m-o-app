@@ -7,9 +7,7 @@ import {
   Stethoscope,
   ClipboardList
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -26,8 +24,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useClinicAdmin } from "@/hooks/useClinicAdmin";
+import { cn } from "@/lib/utils";
 
-// Format price to Brazilian Real format (50 -> 50,00)
 const formatPriceBR = (price: number) => {
   return price.toFixed(2).replace('.', ',');
 };
@@ -43,18 +41,15 @@ export function ClinicPricesTab() {
   } = useClinicAdmin();
 
   const [editingPrice, setEditingPrice] = useState<{ examId: string; price: string } | null>(null);
-  const [searchExams, setSearchExams] = useState("");
-  const [searchConsultas, setSearchConsultas] = useState("");
+  const [activeCategory, setActiveCategory] = useState<'exames' | 'consultas'>('exames');
+  const [searchQuery, setSearchQuery] = useState("");
 
   const exams = examTypes?.filter(e => e.category === 'exame') || [];
   const consultas = examTypes?.filter(e => e.category === 'consulta') || [];
 
-  const filteredExams = exams.filter(e => 
-    e.name.toLowerCase().includes(searchExams.toLowerCase())
-  );
-
-  const filteredConsultas = consultas.filter(e => 
-    e.name.toLowerCase().includes(searchConsultas.toLowerCase())
+  const currentItems = activeCategory === 'exames' ? exams : consultas;
+  const filteredItems = currentItems.filter(e => 
+    e.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getExamPrice = (examId: string) => {
@@ -66,7 +61,7 @@ export function ClinicPricesTab() {
       setExamPrice.mutate({
         exam_type_id: examId,
         price: parseFloat(price.replace(',', '.')),
-        is_available: true, // If price is set, it's available
+        is_available: true,
         requires_prescription: requiresPrescription,
       });
       setEditingPrice(null);
@@ -84,177 +79,191 @@ export function ClinicPricesTab() {
 
   if (loadingExamTypes || loadingPrices) {
     return (
-      <div className="flex justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Carregando...</p>
       </div>
     );
   }
 
   if (!clinic) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <DollarSign className="h-12 w-12 mx-auto mb-2 opacity-50" />
-        <p>Clínica não encontrada</p>
+      <div className="bg-card rounded-2xl border shadow-sm p-8 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+          <DollarSign className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <p className="text-muted-foreground">Clínica não encontrada</p>
       </div>
     );
   }
 
-  const renderTable = (items: typeof exams) => (
-    <div className="rounded-md border -mx-2">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="text-xs px-2">Nome</TableHead>
-            <TableHead className="text-center text-xs px-1 w-16">Preço</TableHead>
-            <TableHead className="text-center text-xs px-1 w-14">Pedido</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                Nenhum item encontrado
-              </TableCell>
-            </TableRow>
-          ) : (
-            items.map((exam) => {
-              const priceData = getExamPrice(exam.id);
-              const isEditing = editingPrice?.examId === exam.id;
-              const requiresPrescription = (priceData as any)?.requires_prescription ?? false;
-              
-              return (
-                <TableRow key={exam.id}>
-                  <TableCell className="font-medium py-2 px-2">
-                    <span className="text-xs">{exam.name}</span>
-                  </TableCell>
-                  <TableCell className="text-center py-2 px-1">
-                    {isEditing ? (
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={editingPrice.price}
-                        onChange={(e) => setEditingPrice({ 
-                          examId: exam.id, 
-                          price: e.target.value 
-                        })}
-                        className="w-16 h-7 text-xs text-center px-1"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleSavePrice(exam.id, editingPrice.price, requiresPrescription);
-                          } else if (e.key === 'Escape') {
-                            setEditingPrice(null);
-                          }
-                        }}
-                        onBlur={() => {
-                          if (editingPrice.price) {
-                            handleSavePrice(exam.id, editingPrice.price, requiresPrescription);
-                          } else {
-                            setEditingPrice(null);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <span 
-                        className="cursor-pointer"
-                        onClick={() => setEditingPrice({ 
-                          examId: exam.id, 
-                          price: priceData?.price?.toString() || "" 
-                        })}
-                      >
-                        {priceData?.price 
-                          ? <span className="text-xs font-medium">{formatPriceBR(priceData.price)}</span>
-                          : <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">Definir</span>
-                        }
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center py-2 px-1">
-                    <Select
-                      value={requiresPrescription ? "sim" : "nao"}
-                      onValueChange={(value) => {
-                        if (priceData) {
-                          setPrescription(exam.id, priceData.price, value === "sim");
-                        }
-                      }}
-                      disabled={setExamPrice.isPending || !priceData}
-                    >
-                      <SelectTrigger className="w-12 h-7 text-[10px] px-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-lg z-50">
-                        <SelectItem value="nao" className="text-xs">Não</SelectItem>
-                        <SelectItem value="sim" className="text-xs">Sim</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                </TableRow>
-              );
-            })
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  );
-
   return (
     <div className="space-y-4">
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
+        className="flex items-center gap-3"
       >
-        <Card className="overflow-hidden">
-          <CardHeader className="pb-2 px-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <DollarSign className="h-4 w-4 text-primary" />
-              Meus Preços
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Defina preços e pedido médico
-            </p>
-          </CardHeader>
-          <CardContent className="px-3 pb-3">
-            <Tabs defaultValue="exames" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-3 h-9">
-                <TabsTrigger value="exames" className="flex items-center gap-1 text-xs">
-                  <ClipboardList className="h-3 w-3" />
-                  Exames ({exams.length})
-                </TabsTrigger>
-                <TabsTrigger value="consultas" className="flex items-center gap-1 text-xs">
-                  <Stethoscope className="h-3 w-3" />
-                  Consultas ({consultas.length})
-                </TabsTrigger>
-              </TabsList>
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <DollarSign className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h3 className="font-bold text-sm">Meus Preços</h3>
+          <p className="text-xs text-muted-foreground">Defina preços e pedido médico</p>
+        </div>
+      </motion.div>
 
-              <TabsContent value="exames" className="space-y-3 mt-0">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar exame..."
-                    value={searchExams}
-                    onChange={(e) => setSearchExams(e.target.value)}
-                    className="pl-8 h-8 text-sm"
-                  />
-                </div>
-                {renderTable(filteredExams)}
-              </TabsContent>
+      {/* Category Toggle */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="flex gap-2 p-1 bg-muted rounded-xl"
+      >
+        <button
+          onClick={() => { setActiveCategory('exames'); setSearchQuery(''); }}
+          className={cn(
+            "flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2",
+            activeCategory === 'exames' 
+              ? "bg-white text-foreground shadow-sm" 
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <ClipboardList className="w-4 h-4" />
+          Exames ({exams.length})
+        </button>
+        <button
+          onClick={() => { setActiveCategory('consultas'); setSearchQuery(''); }}
+          className={cn(
+            "flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2",
+            activeCategory === 'consultas' 
+              ? "bg-white text-foreground shadow-sm" 
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Stethoscope className="w-4 h-4" />
+          Consultas ({consultas.length})
+        </button>
+      </motion.div>
 
-              <TabsContent value="consultas" className="space-y-3 mt-0">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar consulta..."
-                    value={searchConsultas}
-                    onChange={(e) => setSearchConsultas(e.target.value)}
-                    className="pl-8 h-8 text-sm"
-                  />
-                </div>
-                {renderTable(filteredConsultas)}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+      {/* Search */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="relative"
+      >
+        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder={`Buscar ${activeCategory === 'exames' ? 'exames' : 'consultas'}...`}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-12 h-12 rounded-xl bg-card border shadow-sm"
+        />
+      </motion.div>
+
+      {/* Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="bg-card rounded-2xl border shadow-sm overflow-hidden"
+      >
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30">
+              <TableHead className="text-xs font-semibold px-4">Nome</TableHead>
+              <TableHead className="text-center text-xs font-semibold px-2 w-20">Preço</TableHead>
+              <TableHead className="text-center text-xs font-semibold px-2 w-16">Pedido</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                  Nenhum item encontrado
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredItems.map((exam) => {
+                const priceData = getExamPrice(exam.id);
+                const isEditing = editingPrice?.examId === exam.id;
+                const requiresPrescription = (priceData as any)?.requires_prescription ?? false;
+                
+                return (
+                  <TableRow key={exam.id}>
+                    <TableCell className="font-medium py-3 px-4">
+                      <span className="text-sm">{exam.name}</span>
+                    </TableCell>
+                    <TableCell className="text-center py-3 px-2">
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={editingPrice.price}
+                          onChange={(e) => setEditingPrice({ 
+                            examId: exam.id, 
+                            price: e.target.value 
+                          })}
+                          className="w-20 h-9 text-sm text-center rounded-lg"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSavePrice(exam.id, editingPrice.price, requiresPrescription);
+                            } else if (e.key === 'Escape') {
+                              setEditingPrice(null);
+                            }
+                          }}
+                          onBlur={() => {
+                            if (editingPrice.price) {
+                              handleSavePrice(exam.id, editingPrice.price, requiresPrescription);
+                            } else {
+                              setEditingPrice(null);
+                            }
+                          }}
+                        />
+                      ) : (
+                        <span 
+                          className="cursor-pointer"
+                          onClick={() => setEditingPrice({ 
+                            examId: exam.id, 
+                            price: priceData?.price?.toString() || "" 
+                          })}
+                        >
+                          {priceData?.price 
+                            ? <span className="text-sm font-semibold">{formatPriceBR(priceData.price)}</span>
+                            : <span className="bg-amber-500/10 text-amber-600 px-2 py-1 rounded-lg text-xs font-semibold">Definir</span>
+                          }
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center py-3 px-2">
+                      <Select
+                        value={requiresPrescription ? "sim" : "nao"}
+                        onValueChange={(value) => {
+                          if (priceData) {
+                            setPrescription(exam.id, priceData.price, value === "sim");
+                          }
+                        }}
+                        disabled={setExamPrice.isPending || !priceData}
+                      >
+                        <SelectTrigger className="w-14 h-9 text-xs rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="nao" className="text-xs">Não</SelectItem>
+                          <SelectItem value="sim" className="text-xs">Sim</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
       </motion.div>
     </div>
   );

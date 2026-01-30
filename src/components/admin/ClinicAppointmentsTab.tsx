@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
@@ -8,14 +8,14 @@ import {
   User, 
   Phone,
   Loader2,
-  Filter,
   ChevronDown,
   ChevronUp,
   CheckCircle,
   XCircle,
-  MessageCircle
+  MessageCircle,
+  CalendarDays,
+  Filter
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,11 +27,11 @@ import {
 } from "@/components/ui/select";
 import { useClinicAdmin } from "@/hooks/useClinicAdmin";
 
-const statusLabels: Record<string, { label: string; className: string }> = {
-  pending: { label: "Pendente", className: "bg-yellow-100 text-yellow-800" },
-  confirmed: { label: "Confirmado", className: "bg-blue-100 text-blue-800" },
-  completed: { label: "Concluído", className: "bg-green-100 text-green-800" },
-  cancelled: { label: "Cancelado", className: "bg-red-100 text-red-800" },
+const statusConfig: Record<string, { label: string; className: string }> = {
+  pending: { label: "Pendente", className: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  confirmed: { label: "Confirmado", className: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+  completed: { label: "Concluído", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+  cancelled: { label: "Cancelado", className: "bg-red-500/10 text-red-600 border-red-500/20" },
 };
 
 export function ClinicAppointmentsTab() {
@@ -45,9 +45,9 @@ export function ClinicAppointmentsTab() {
   }) || [];
 
   const getStatusBadge = (status: string) => {
-    const config = statusLabels[status] || { label: status, className: "bg-gray-100" };
+    const config = statusConfig[status] || { label: status, className: "" };
     return (
-      <Badge variant="secondary" className={config.className}>
+      <Badge className={`${config.className} font-medium text-xs`}>
         {config.label}
       </Badge>
     );
@@ -63,207 +63,226 @@ export function ClinicAppointmentsTab() {
 
   if (loadingAppointments) {
     return (
-      <div className="flex justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Carregando...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Filters */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
+    <div className="space-y-4">
+      {/* Filter */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-card rounded-2xl border shadow-sm p-4"
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <Filter className="h-5 w-5 text-primary" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="pending">Pendentes</SelectItem>
-              <SelectItem value="confirmed">Confirmados</SelectItem>
-              <SelectItem value="completed">Concluídos</SelectItem>
-              <SelectItem value="cancelled">Cancelados</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+          </div>
+          <span className="font-bold text-sm">Filtrar por status</span>
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-12 rounded-xl bg-muted/50 border-0">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os status</SelectItem>
+            <SelectItem value="pending">Pendentes</SelectItem>
+            <SelectItem value="confirmed">Confirmados</SelectItem>
+            <SelectItem value="completed">Concluídos</SelectItem>
+            <SelectItem value="cancelled">Cancelados</SelectItem>
+          </SelectContent>
+        </Select>
+      </motion.div>
 
       {/* Appointments List */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Calendar className="h-5 w-5 text-primary" />
-            Meus Agendamentos ({filteredAppointments.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {filteredAppointments.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>Nenhum agendamento encontrado</p>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <CalendarDays className="h-5 w-5 text-primary" />
+          </div>
+          <span className="font-bold text-sm">Agendamentos ({filteredAppointments.length})</span>
+        </div>
+
+        {filteredAppointments.length === 0 ? (
+          <div className="bg-card rounded-2xl border shadow-sm p-8 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+              <Calendar className="h-8 w-8 text-muted-foreground" />
             </div>
-          ) : (
-            filteredAppointments.map((appointment) => (
+            <p className="text-muted-foreground">Nenhum agendamento encontrado</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredAppointments.map((appointment, index) => (
               <motion.div
                 key={appointment.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="rounded-lg border p-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+                className="bg-card rounded-2xl border shadow-sm overflow-hidden"
               >
                 <button
                   onClick={() => setExpandedAppointment(
                     expandedAppointment === appointment.id ? null : appointment.id
                   )}
-                  className="w-full text-left"
+                  className="w-full text-left p-4"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                        <User className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-sm block">
                           {appointment.profile?.name || "Paciente"}
                         </span>
+                        {appointment.preferred_date && (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                            <Clock className="h-3.5 w-3.5" />
+                            <span>
+                              {format(new Date(appointment.preferred_date), "dd/MM/yyyy", { locale: ptBR })}
+                              {appointment.preferred_time && ` às ${appointment.preferred_time}`}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      {appointment.preferred_date && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span>
-                            {format(new Date(appointment.preferred_date), "dd/MM/yyyy", { locale: ptBR })}
-                            {appointment.preferred_time && ` às ${appointment.preferred_time}`}
-                          </span>
-                        </div>
-                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusBadge(appointment.status)}
                       {expandedAppointment === appointment.id ? (
-                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                        <ChevronUp className="h-5 w-5 text-muted-foreground" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
                       )}
                     </div>
                   </div>
                 </button>
 
-                {expandedAppointment === appointment.id && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    className="mt-4 pt-4 border-t space-y-4"
-                  >
-                    {/* Contact */}
-                    {appointment.profile?.phone && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span>{appointment.profile.phone}</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="ml-auto"
-                          onClick={() => handleWhatsApp(appointment.profile?.phone, appointment.profile?.name || 'Paciente')}
-                        >
-                          <MessageCircle className="h-4 w-4 mr-1" />
-                          WhatsApp
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Exams */}
-                    {appointment.appointment_exams && appointment.appointment_exams.length > 0 && (
-                      <div>
-                        <p className="text-sm font-medium mb-2">Exames solicitados:</p>
-                        <div className="space-y-1">
-                          {appointment.appointment_exams.map((ae, idx) => (
-                            <div key={idx} className="flex justify-between text-sm">
-                              <span>{ae.exam_type?.name}</span>
-                              {ae.price_at_booking && (
-                                <span className="text-muted-foreground">
-                                  R$ {ae.price_at_booking.toFixed(2)}
-                                </span>
-                              )}
+                <AnimatePresence>
+                  {expandedAppointment === appointment.id && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-4 pb-4 pt-0 space-y-4 border-t">
+                        {/* Contact */}
+                        {appointment.profile?.phone && (
+                          <div className="flex items-center justify-between pt-4">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Phone className="h-4 w-4 text-muted-foreground" />
+                              <span>{appointment.profile.phone}</span>
                             </div>
-                          ))}
-                        </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-xl"
+                              onClick={() => handleWhatsApp(appointment.profile?.phone, appointment.profile?.name || 'Paciente')}
+                            >
+                              <MessageCircle className="h-4 w-4 mr-1" />
+                              WhatsApp
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Exams */}
+                        {appointment.appointment_exams && appointment.appointment_exams.length > 0 && (
+                          <div className="bg-muted/30 rounded-xl p-3">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Exames solicitados:</p>
+                            <div className="space-y-1.5">
+                              {appointment.appointment_exams.map((ae, idx) => (
+                                <div key={idx} className="flex justify-between text-sm">
+                                  <span>{ae.exam_type?.name}</span>
+                                  {ae.price_at_booking && (
+                                    <span className="font-semibold">
+                                      R$ {ae.price_at_booking.toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Notes */}
+                        {appointment.notes && (
+                          <div className="bg-muted/30 rounded-xl p-3">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Observações:</p>
+                            <p className="text-sm">{appointment.notes}</p>
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        {appointment.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="flex-1 h-11 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white"
+                              onClick={() => updateAppointmentStatus.mutate({ 
+                                id: appointment.id, 
+                                status: 'confirmed' 
+                              })}
+                              disabled={updateAppointmentStatus.isPending}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Confirmar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-11 rounded-xl text-red-600 border-red-200 hover:bg-red-50"
+                              onClick={() => updateAppointmentStatus.mutate({ 
+                                id: appointment.id, 
+                                status: 'cancelled' 
+                              })}
+                              disabled={updateAppointmentStatus.isPending}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Cancelar
+                            </Button>
+                          </div>
+                        )}
+
+                        {appointment.status === 'confirmed' && (
+                          <Button
+                            size="sm"
+                            className="w-full h-11 rounded-xl"
+                            onClick={() => updateAppointmentStatus.mutate({ 
+                              id: appointment.id, 
+                              status: 'completed' 
+                            })}
+                            disabled={updateAppointmentStatus.isPending}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Marcar como Concluído
+                          </Button>
+                        )}
+
+                        {/* Created At */}
+                        <p className="text-xs text-muted-foreground text-center">
+                          Agendado em: {format(
+                            new Date(appointment.created_at), 
+                            "dd/MM/yyyy 'às' HH:mm", 
+                            { locale: ptBR }
+                          )}
+                        </p>
                       </div>
-                    )}
-
-                    {/* Notes */}
-                    {appointment.notes && (
-                      <div>
-                        <p className="text-sm font-medium mb-1">Observações:</p>
-                        <p className="text-sm text-muted-foreground">{appointment.notes}</p>
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    {appointment.status === 'pending' && (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 text-green-600 border-green-600 hover:bg-green-50"
-                          onClick={() => updateAppointmentStatus.mutate({ 
-                            id: appointment.id, 
-                            status: 'confirmed' 
-                          })}
-                          disabled={updateAppointmentStatus.isPending}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Confirmar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 text-red-600 border-red-600 hover:bg-red-50"
-                          onClick={() => updateAppointmentStatus.mutate({ 
-                            id: appointment.id, 
-                            status: 'cancelled' 
-                          })}
-                          disabled={updateAppointmentStatus.isPending}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Cancelar
-                        </Button>
-                      </div>
-                    )}
-
-                    {appointment.status === 'confirmed' && (
-                      <Button
-                        size="sm"
-                        className="w-full"
-                        onClick={() => updateAppointmentStatus.mutate({ 
-                          id: appointment.id, 
-                          status: 'completed' 
-                        })}
-                        disabled={updateAppointmentStatus.isPending}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Marcar como Concluído
-                      </Button>
-                    )}
-
-                    {/* Created At */}
-                    <p className="text-xs text-muted-foreground">
-                      Agendado em: {format(
-                        new Date(appointment.created_at), 
-                        "dd/MM/yyyy 'às' HH:mm", 
-                        { locale: ptBR }
-                      )}
-                    </p>
-                  </motion.div>
-                )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+            ))}
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 }
