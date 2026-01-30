@@ -68,12 +68,8 @@ const Index = () => {
             <TrialBanner daysRemaining={daysRemaining} />
           )}
 
-          {/* Hero Section - Dark with gradient */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-5 pb-8 pt-10">
-            {/* Decorative circles */}
-            <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
-            <div className="absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-secondary/20 blur-3xl" />
-            
+          {/* Hero Section - White background */}
+          <div className="relative overflow-hidden bg-white px-5 pb-8 pt-10">
             <motion.div
               className="relative z-10 flex flex-col items-center"
               initial={{ opacity: 0, y: 20 }}
@@ -85,16 +81,16 @@ const Index = () => {
                 alt="Exame na Mão"
                 className="mb-4 w-32"
               />
-              <p className="mb-6 text-center text-sm text-white/90">
+              <p className="mb-6 text-center text-sm text-muted-foreground">
                 Consultas e exames pertinho de você
               </p>
 
               {!user ? (
                 <div className="flex w-full max-w-xs gap-3">
-                  <Button asChild size="lg" className="flex-1 bg-primary hover:bg-primary/90 font-semibold shadow-lg shadow-primary/25">
+                  <Button asChild size="lg" className="flex-1 font-semibold shadow-lg shadow-primary/25">
                     <Link to="/auth">Entrar</Link>
                   </Button>
-                  <Button asChild size="lg" variant="outline" className="flex-1 border-slate-600 bg-transparent text-white hover:bg-slate-800 font-semibold">
+                  <Button asChild size="lg" variant="outline" className="flex-1 font-semibold">
                     <Link to="/auth?modo=cadastro">Cadastrar</Link>
                   </Button>
                 </div>
