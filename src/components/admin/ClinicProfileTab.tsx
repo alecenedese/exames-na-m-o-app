@@ -10,7 +10,6 @@ import {
   FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useClinicAdmin } from "@/hooks/useClinicAdmin";
@@ -60,153 +59,177 @@ export function ClinicProfileTab() {
 
   if (loadingClinic || loadingRegistration) {
     return (
-      <div className="flex justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Carregando...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit}>
-        {/* Basic Info */}
-        <Card className="mb-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Building2 className="h-5 w-5 text-primary" />
-              Dados da Clínica
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Basic Info */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-card rounded-2xl border shadow-sm overflow-hidden"
+      >
+        <div className="p-4 border-b bg-muted/30 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Building2 className="h-5 w-5 text-primary" />
+          </div>
+          <h3 className="font-bold text-sm">Dados da Clínica</h3>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-sm font-medium">Nome da Clínica</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="h-12 rounded-xl bg-muted/50 border-0"
+              required
+            />
+          </div>
+
+          {registration?.cnpj && (
             <div className="space-y-2">
-              <Label htmlFor="name">Nome da Clínica</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-            </div>
-
-            {registration?.cnpj && (
-              <div className="space-y-2">
-                <Label>CNPJ</Label>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{registration.cnpj}</span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Address */}
-        <Card className="mb-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <MapPin className="h-5 w-5 text-primary" />
-              Endereço
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="address">Endereço Completo</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="city">Cidade</Label>
-                <Input
-                  id="city"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="state">Estado</Label>
-                <Input
-                  id="state"
-                  value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  maxLength={2}
-                  required
-                />
+              <Label className="text-sm font-medium">CNPJ</Label>
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+                <FileText className="h-5 w-5 text-muted-foreground" />
+                <span className="text-sm font-medium">{registration.cnpj}</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Contact */}
-        <Card className="mb-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Phone className="h-5 w-5 text-primary" />
-              Contato
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="whatsapp">WhatsApp *</Label>
-              <Input
-                id="whatsapp"
-                type="tel"
-                value={formData.whatsapp}
-                onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                required
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Opening Hours */}
-        <Card className="mb-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Clock className="h-5 w-5 text-primary" />
-              Horário de Funcionamento
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {clinic?.opening_hours && (
-              <div className="mb-4 p-3 bg-muted rounded-md">
-                <p className="text-sm text-muted-foreground">Horário atual:</p>
-                <p className="text-sm font-medium">{clinic.opening_hours}</p>
-              </div>
-            )}
-            <OpeningHoursSelector value={openingHours} onChange={setOpeningHours} />
-          </CardContent>
-        </Card>
-
-        {/* Submit */}
-        <Button 
-          type="submit" 
-          className="w-full"
-          disabled={updateClinic.isPending}
-        >
-          {updateClinic.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 h-4 w-4" />
           )}
-          Salvar Alterações
-        </Button>
-      </form>
-    </div>
+        </div>
+      </motion.div>
+
+      {/* Address */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="bg-card rounded-2xl border shadow-sm overflow-hidden"
+      >
+        <div className="p-4 border-b bg-muted/30 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <MapPin className="h-5 w-5 text-primary" />
+          </div>
+          <h3 className="font-bold text-sm">Endereço</h3>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="address" className="text-sm font-medium">Endereço Completo</Label>
+            <Input
+              id="address"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              className="h-12 rounded-xl bg-muted/50 border-0"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="city" className="text-sm font-medium">Cidade</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                className="h-12 rounded-xl bg-muted/50 border-0"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="state" className="text-sm font-medium">Estado</Label>
+              <Input
+                id="state"
+                value={formData.state}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                className="h-12 rounded-xl bg-muted/50 border-0"
+                maxLength={2}
+                required
+              />
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Contact */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-card rounded-2xl border shadow-sm overflow-hidden"
+      >
+        <div className="p-4 border-b bg-muted/30 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Phone className="h-5 w-5 text-primary" />
+          </div>
+          <h3 className="font-bold text-sm">Contato</h3>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="phone" className="text-sm font-medium">Telefone</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="h-12 rounded-xl bg-muted/50 border-0"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="whatsapp" className="text-sm font-medium">WhatsApp *</Label>
+            <Input
+              id="whatsapp"
+              type="tel"
+              value={formData.whatsapp}
+              onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+              className="h-12 rounded-xl bg-muted/50 border-0"
+              required
+            />
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Opening Hours */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="bg-card rounded-2xl border shadow-sm overflow-hidden"
+      >
+        <div className="p-4 border-b bg-muted/30 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Clock className="h-5 w-5 text-primary" />
+          </div>
+          <h3 className="font-bold text-sm">Horário de Funcionamento</h3>
+        </div>
+        <div className="p-4">
+          {clinic?.opening_hours && (
+            <div className="mb-4 p-3 bg-muted/50 rounded-xl">
+              <p className="text-xs text-muted-foreground">Horário atual:</p>
+              <p className="text-sm font-medium mt-1">{clinic.opening_hours}</p>
+            </div>
+          )}
+          <OpeningHoursSelector value={openingHours} onChange={setOpeningHours} />
+        </div>
+      </motion.div>
+
+      {/* Submit */}
+      <Button 
+        type="submit" 
+        className="w-full h-14 text-base font-bold rounded-xl shadow-lg shadow-primary/25"
+        disabled={updateClinic.isPending}
+      >
+        {updateClinic.isPending ? (
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        ) : (
+          <Save className="mr-2 h-5 w-5" />
+        )}
+        Salvar Alterações
+      </Button>
+    </form>
   );
 }
