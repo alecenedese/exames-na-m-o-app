@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, Building2, Phone, MapPin, FileText } from 'lucide-react';
+import { ChevronLeft, Mail, Lock, User, Eye, EyeOff, Building2, Phone, MapPin, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OpeningHoursSelector, OpeningHoursState, initialOpeningHours, formatOpeningHoursToString } from '@/components/OpeningHoursSelector';
+import logoHero from '@/assets/logo-hero.png';
 
 type AccountType = 'user' | 'clinic';
 
@@ -55,7 +55,6 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    // Check if there's a pending order to return to
     const pendingOrder = localStorage.getItem('pending_order');
     const redirectTo = pendingOrder ? '/exames' : '/';
 
@@ -102,7 +101,6 @@ export default function Auth() {
             navigate(redirectTo);
           }
         } else {
-          // Clinic registration
           if (!name.trim() || !clinicName.trim() || !cnpj.trim() || !address.trim() || !whatsapp.trim()) {
             toast({
               title: 'Campos obrigatórios',
@@ -153,50 +151,83 @@ export default function Auth() {
 
   return (
     <div className="mobile-container bg-background min-h-screen">
-      <header className="p-4">
-        <Link to="/">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </Link>
-      </header>
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-white safe-area-top border-b">
+        <div className="flex items-center gap-3 px-4 h-14">
+          <Link to="/">
+            <button className="p-1 -ml-1 hover:bg-muted rounded-lg transition-colors">
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          </Link>
+          <span className="font-semibold">{isLogin ? 'Entrar' : 'Criar conta'}</span>
+        </div>
+      </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="px-6 pt-4 pb-8"
-      >
-        <h1 className="font-display text-3xl font-bold">
-          {isLogin ? 'Bem-vindo!' : 'Criar conta'}
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          {isLogin 
-            ? 'Entre para agendar seus exames' 
-            : accountType === 'user' 
-              ? 'Preencha os dados para se cadastrar'
-              : 'Cadastre sua clínica para receber agendamentos'}
-        </p>
+      <div className="px-5 py-6">
+        {/* Logo */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex justify-center mb-6"
+        >
+          <img src={logoHero} alt="Exame na Mão" className="w-24" />
+        </motion.div>
 
+        {/* Title */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-6"
+        >
+          <h1 className="text-2xl font-bold text-foreground">
+            {isLogin ? 'Bem-vindo de volta!' : 'Crie sua conta'}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isLogin 
+              ? 'Entre para agendar seus exames' 
+              : accountType === 'user' 
+                ? 'Preencha os dados para se cadastrar'
+                : 'Cadastre sua clínica'}
+          </p>
+        </motion.div>
+
+        {/* Account type selector for signup */}
         {!isLogin && (
-          <Tabs 
-            value={accountType} 
-            onValueChange={(v) => setAccountType(v as AccountType)}
-            className="mt-6"
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6"
           >
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="user" className="gap-2">
+            <div className="flex gap-2 p-1 bg-muted rounded-xl">
+              <button
+                type="button"
+                onClick={() => setAccountType('user')}
+                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                  accountType === 'user' 
+                    ? 'bg-white text-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
                 <User className="w-4 h-4" />
-                Usuário
-              </TabsTrigger>
-              <TabsTrigger value="clinic" className="gap-2">
+                Paciente
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountType('clinic')}
+                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                  accountType === 'clinic' 
+                    ? 'bg-white text-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
                 <Building2 className="w-4 h-4" />
                 Clínica
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+              </button>
+            </div>
+          </motion.div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <AnimatePresence mode="wait">
             {!isLogin && (
               <motion.div
@@ -208,18 +239,18 @@ export default function Auth() {
                 className="space-y-4"
               >
                 <div className="space-y-2">
-                  <Label htmlFor="name">
+                  <Label htmlFor="name" className="text-sm font-medium">
                     {accountType === 'user' ? 'Nome completo' : 'Nome do responsável'}
                   </Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       id="name"
                       type="text"
                       placeholder={accountType === 'user' ? 'Seu nome' : 'Nome do responsável'}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="pl-10 h-12"
+                      className="pl-12 h-14 rounded-xl bg-muted/50 border-0 text-base"
                     />
                   </div>
                 </div>
@@ -227,48 +258,48 @@ export default function Auth() {
                 {accountType === 'clinic' && (
                   <>
                     <div className="space-y-2">
-                      <Label htmlFor="clinicName">Nome da clínica *</Label>
+                      <Label htmlFor="clinicName" className="text-sm font-medium">Nome da clínica *</Label>
                       <div className="relative">
-                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                         <Input
                           id="clinicName"
                           type="text"
                           placeholder="Nome da clínica"
                           value={clinicName}
                           onChange={(e) => setClinicName(e.target.value)}
-                          className="pl-10 h-12"
+                          className="pl-12 h-14 rounded-xl bg-muted/50 border-0 text-base"
                           required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="cnpj">CNPJ *</Label>
+                      <Label htmlFor="cnpj" className="text-sm font-medium">CNPJ *</Label>
                       <div className="relative">
-                        <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                         <Input
                           id="cnpj"
                           type="text"
                           placeholder="00.000.000/0000-00"
                           value={cnpj}
                           onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
-                          className="pl-10 h-12"
+                          className="pl-12 h-14 rounded-xl bg-muted/50 border-0 text-base"
                           required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="address">Endereço completo *</Label>
+                      <Label htmlFor="address" className="text-sm font-medium">Endereço completo *</Label>
                       <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                         <Input
                           id="address"
                           type="text"
                           placeholder="Rua, número, bairro"
                           value={address}
                           onChange={(e) => setAddress(e.target.value)}
-                          className="pl-10 h-12"
+                          className="pl-12 h-14 rounded-xl bg-muted/50 border-0 text-base"
                           required
                         />
                       </div>
@@ -276,7 +307,7 @@ export default function Auth() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <Label htmlFor="phone">Telefone</Label>
+                        <Label htmlFor="phone" className="text-sm font-medium">Telefone</Label>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input
@@ -285,13 +316,13 @@ export default function Auth() {
                             placeholder="(00) 0000-0000"
                             value={phone}
                             onChange={(e) => setPhone(formatPhone(e.target.value))}
-                            className="pl-9 h-12 text-sm"
+                            className="pl-10 h-14 rounded-xl bg-muted/50 border-0 text-sm"
                           />
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="whatsapp">WhatsApp *</Label>
+                        <Label htmlFor="whatsapp" className="text-sm font-medium">WhatsApp *</Label>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input
@@ -300,7 +331,7 @@ export default function Auth() {
                             placeholder="(00) 00000-0000"
                             value={whatsapp}
                             onChange={(e) => setWhatsapp(formatPhone(e.target.value))}
-                            className="pl-9 h-12 text-sm"
+                            className="pl-10 h-14 rounded-xl bg-muted/50 border-0 text-sm"
                             required
                           />
                         </div>
@@ -318,60 +349,72 @@ export default function Auth() {
           </AnimatePresence>
 
           <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
+            <Label htmlFor="email" className="text-sm font-medium">E-mail</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
                 id="email"
                 type="email"
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 h-12"
+                className="pl-12 h-14 rounded-xl bg-muted/50 border-0 text-base"
                 required
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+            <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 pr-10 h-12"
+                className="pl-12 pr-12 h-14 rounded-xl bg-muted/50 border-0 text-base"
                 required
                 minLength={6}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
           </div>
 
-          <Button type="submit" className="w-full h-12 font-semibold" disabled={loading}>
-            {loading ? 'Aguarde...' : isLogin ? 'Entrar' : accountType === 'user' ? 'Cadastrar' : 'Cadastrar Clínica'}
+          <Button 
+            type="submit" 
+            className="w-full h-14 text-base font-bold rounded-xl shadow-lg shadow-primary/25 mt-6" 
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              isLogin ? 'Entrar' : accountType === 'user' ? 'Criar conta' : 'Cadastrar Clínica'
+            )}
           </Button>
         </form>
 
-        <div className="mt-6 text-center">
+        {/* Toggle login/signup */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            {isLogin ? 'Não tem conta?' : 'Já tem conta?'}
+          </p>
           <button
             type="button"
             onClick={() => setIsLogin(!isLogin)}
-            className="text-primary font-medium text-sm"
+            className="text-primary font-semibold text-sm mt-1"
           >
-            {isLogin ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Entre'}
+            {isLogin ? 'Criar conta grátis' : 'Fazer login'}
           </button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
