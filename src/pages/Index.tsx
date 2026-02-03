@@ -79,11 +79,8 @@ const Index = () => {
               <img
                 src={logoHero}
                 alt="Exame na Mão"
-                className="mb-4 w-32"
+                className="mb-6 w-44"
               />
-              <p className="mb-6 text-center text-sm text-muted-foreground">
-                Consultas e exames pertinho de você
-              </p>
 
               {!user ? (
                 <div className="flex w-full max-w-xs gap-3">
