@@ -178,7 +178,7 @@ const Index = () => {
           </div>
         </div>
       </MobileLayout>
-      <BottomNav />
+      {user && <BottomNav />}
     </>
   );
 };
