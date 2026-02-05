@@ -14,7 +14,7 @@ export function BottomNav() {
   const location = useLocation();
 
   return (
-    <nav className="bottom-nav z-50 max-w-md mx-auto left-1/2 -translate-x-1/2">
+    <nav className="bottom-nav z-50">
       {navItems.map((item) => {
         const isActive = location.pathname === item.path;
         const Icon = item.icon;
