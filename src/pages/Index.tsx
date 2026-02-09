@@ -79,7 +79,7 @@ const Index = () => {
               <img
                 src={logoHero}
                 alt="Exame na Mão"
-                className="mb-6 w-72"
+                className="mb-6 w-full max-w-md"
               />
 
               {!user ? (
