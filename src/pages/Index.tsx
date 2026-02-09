@@ -69,7 +69,7 @@ const Index = () => {
           )}
 
           {/* Hero Section - White background */}
-          <div className="relative overflow-hidden bg-white px-5 pb-6 pt-6">
+          <div className="relative overflow-hidden bg-white">
             <motion.div
               className="relative z-10 flex flex-col items-center"
               initial={{ opacity: 0, y: 20 }}
@@ -79,7 +79,7 @@ const Index = () => {
               <img
                 src={logoHero}
                 alt="Exame na Mão"
-                className="mb-6 w-full max-w-md"
+                className="mb-4 w-full"
               />
 
               {!user ? (
