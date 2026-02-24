@@ -300,6 +300,42 @@ export function AdminClinicsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Clinic Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Excluir Clínica</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir <strong>{clinicToDelete?.name}</strong>? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                if (clinicToDelete) {
+                  deleteClinic.mutate(clinicToDelete.id);
+                  setShowDeleteDialog(false);
+                  setClinicToDelete(null);
+                  setExpandedClinic(null);
+                }
+              }}
+              disabled={deleteClinic.isPending}
+              className="rounded-xl"
+            >
+              {deleteClinic.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Confirmar Exclusão"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

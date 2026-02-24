@@ -390,6 +390,7 @@ export function useAdmin() {
     loadingAppointments,
     approveClinic,
     rejectClinic,
+    deleteClinic,
     createExamType,
     updateExamType,
     deleteExamType,
