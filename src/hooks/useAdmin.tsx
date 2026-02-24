@@ -318,6 +318,25 @@ export function useAdmin() {
     },
   });
 
+  // Delete clinic
+  const deleteClinic = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('clinics')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Clínica removida com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['admin-clinics'] });
+    },
+    onError: (error) => {
+      toast.error('Erro ao remover clínica: ' + error.message);
+    },
+  });
+
   // Set clinic exam price
   const setClinicPrice = useMutation({
     mutationFn: async ({ 
