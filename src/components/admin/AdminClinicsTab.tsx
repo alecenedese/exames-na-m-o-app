@@ -36,8 +36,12 @@ export function AdminClinicsTab() {
     clinics,
     loadingClinics,
     approveClinic, 
-    rejectClinic 
+    rejectClinic,
+    deleteClinic 
   } = useAdmin();
+  
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [clinicToDelete, setClinicToDelete] = useState<{ id: string; name: string } | null>(null);
   
   const [selectedRegistration, setSelectedRegistration] = useState<ClinicRegistration | null>(null);
   const [rejectReason, setRejectReason] = useState("");
