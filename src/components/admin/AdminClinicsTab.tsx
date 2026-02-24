@@ -237,8 +237,21 @@ export function AdminClinicsTab() {
                           <p><strong>Endereço:</strong> {clinic.address}</p>
                           <p><strong>WhatsApp:</strong> {clinic.whatsapp}</p>
                           {clinic.phone && <p><strong>Telefone:</strong> {clinic.phone}</p>}
-                          {clinic.opening_hours && <p><strong>Horário:</strong> {clinic.opening_hours}</p>}
+                         {clinic.opening_hours && <p><strong>Horário:</strong> {clinic.opening_hours}</p>}
                         </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-3 w-full h-11 rounded-xl text-red-600 border-red-200 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setClinicToDelete({ id: clinic.id, name: clinic.name });
+                            setShowDeleteDialog(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir Clínica
+                        </Button>
                       </div>
                     </motion.div>
                   )}
