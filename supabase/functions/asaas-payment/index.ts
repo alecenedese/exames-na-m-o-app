@@ -18,7 +18,6 @@ Deno.serve(async (req) => {
       throw new Error('ASAAS_API_KEY is not configured');
     }
 
-    // Verify auth
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -44,38 +43,35 @@ Deno.serve(async (req) => {
       'access_token': ASAAS_API_KEY,
     };
 
-    if (action === 'create-payment') {
-      const { name, cpfCnpj, email, phone } = body;
-
-      // 1. Find or create customer
-      // Search existing
-      const searchRes = await fetch(`${ASAAS_BASE_URL}/customers?cpfCnpj=${cpfCnpj}`, {
-        headers: asaasHeaders,
-      });
+    // Helper: find or create customer
+    async function getOrCreateCustomer(name: string, cpfCnpj: string, email?: string, phone?: string) {
+      const searchRes = await fetch(`${ASAAS_BASE_URL}/customers?cpfCnpj=${cpfCnpj}`, { headers: asaasHeaders });
       const searchData = await searchRes.json();
 
-      let customerId: string;
       if (searchData.data && searchData.data.length > 0) {
-        customerId = searchData.data[0].id;
-      } else {
-        // Create customer
-        const customerRes = await fetch(`${ASAAS_BASE_URL}/customers`, {
-          method: 'POST',
-          headers: asaasHeaders,
-          body: JSON.stringify({ name, cpfCnpj, email, mobilePhone: phone }),
-        });
-        if (!customerRes.ok) {
-          const err = await customerRes.text();
-          throw new Error(`Asaas customer creation failed [${customerRes.status}]: ${err}`);
-        }
-        const customerData = await customerRes.json();
-        customerId = customerData.id;
+        return searchData.data[0].id;
       }
 
-      // 2. Create PIX payment
+      const customerRes = await fetch(`${ASAAS_BASE_URL}/customers`, {
+        method: 'POST',
+        headers: asaasHeaders,
+        body: JSON.stringify({ name, cpfCnpj, email: email || undefined, mobilePhone: phone || undefined }),
+      });
+      if (!customerRes.ok) {
+        const err = await customerRes.text();
+        throw new Error(`Asaas customer creation failed [${customerRes.status}]: ${err}`);
+      }
+      const customerData = await customerRes.json();
+      return customerData.id;
+    }
+
+    // === PIX PAYMENT ===
+    if (action === 'create-pix') {
+      const { name, cpfCnpj, phone } = body;
+      const customerId = await getOrCreateCustomer(name, cpfCnpj, undefined, phone);
+
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 1);
-      const dueDateStr = dueDate.toISOString().split('T')[0];
 
       const paymentRes = await fetch(`${ASAAS_BASE_URL}/payments`, {
         method: 'POST',
@@ -84,7 +80,7 @@ Deno.serve(async (req) => {
           customer: customerId,
           billingType: 'PIX',
           value: 99.90,
-          dueDate: dueDateStr,
+          dueDate: dueDate.toISOString().split('T')[0],
           description: 'Plano Clínica - Exames na Mão (Mensal)',
           externalReference: userId,
         }),
@@ -92,16 +88,12 @@ Deno.serve(async (req) => {
 
       if (!paymentRes.ok) {
         const err = await paymentRes.text();
-        throw new Error(`Asaas payment creation failed [${paymentRes.status}]: ${err}`);
+        throw new Error(`Asaas PIX payment failed [${paymentRes.status}]: ${err}`);
       }
-
       const paymentData = await paymentRes.json();
 
-      // 3. Get PIX QR Code
-      const qrRes = await fetch(`${ASAAS_BASE_URL}/payments/${paymentData.id}/pixQrCode`, {
-        headers: asaasHeaders,
-      });
-
+      // Get QR Code
+      const qrRes = await fetch(`${ASAAS_BASE_URL}/payments/${paymentData.id}/pixQrCode`, { headers: asaasHeaders });
       let qrCode = null;
       if (qrRes.ok) {
         qrCode = await qrRes.json();
@@ -114,7 +106,6 @@ Deno.serve(async (req) => {
           value: paymentData.value,
           status: paymentData.status,
           invoiceUrl: paymentData.invoiceUrl,
-          bankSlipUrl: paymentData.bankSlipUrl,
           dueDate: paymentData.dueDate,
         },
         pix: qrCode ? {
@@ -122,16 +113,66 @@ Deno.serve(async (req) => {
           qrCodePayload: qrCode.payload,
           expirationDate: qrCode.expirationDate,
         } : null,
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // === CREDIT CARD PAYMENT ===
+    if (action === 'create-credit-card') {
+      const { name, cpfCnpj, email, phone, creditCard, holderInfo } = body;
+      const customerId = await getOrCreateCustomer(name, cpfCnpj, email, phone);
+
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 1);
+
+      const paymentRes = await fetch(`${ASAAS_BASE_URL}/payments`, {
+        method: 'POST',
+        headers: asaasHeaders,
+        body: JSON.stringify({
+          customer: customerId,
+          billingType: 'CREDIT_CARD',
+          value: 99.90,
+          dueDate: dueDate.toISOString().split('T')[0],
+          description: 'Plano Clínica - Exames na Mão (Mensal)',
+          externalReference: userId,
+          creditCard: {
+            holderName: creditCard.holderName,
+            number: creditCard.number,
+            expiryMonth: creditCard.expiryMonth,
+            expiryYear: creditCard.expiryYear,
+            ccv: creditCard.ccv,
+          },
+          creditCardHolderInfo: {
+            name: holderInfo.name,
+            email: holderInfo.email || `${cpfCnpj}@examesnamao.com`,
+            cpfCnpj: holderInfo.cpfCnpj,
+            postalCode: holderInfo.postalCode,
+            addressNumber: holderInfo.addressNumber,
+            phone: holderInfo.phone || phone,
+          },
+        }),
+      });
+
+      if (!paymentRes.ok) {
+        const err = await paymentRes.text();
+        throw new Error(`Asaas credit card payment failed [${paymentRes.status}]: ${err}`);
+      }
+      const paymentData = await paymentRes.json();
+
+      return new Response(JSON.stringify({
+        success: true,
+        payment: {
+          id: paymentData.id,
+          value: paymentData.value,
+          status: paymentData.status,
+          invoiceUrl: paymentData.invoiceUrl,
+        },
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // === CHECK STATUS ===
     if (action === 'check-status') {
       const { paymentId } = body;
-      const statusRes = await fetch(`${ASAAS_BASE_URL}/payments/${paymentId}`, {
-        headers: asaasHeaders,
-      });
+      const statusRes = await fetch(`${ASAAS_BASE_URL}/payments/${paymentId}`, { headers: asaasHeaders });
       if (!statusRes.ok) {
         const err = await statusRes.text();
         throw new Error(`Asaas status check failed [${statusRes.status}]: ${err}`);
@@ -141,9 +182,7 @@ Deno.serve(async (req) => {
         success: true,
         status: statusData.status,
         confirmedDate: statusData.confirmedDate,
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify({ error: 'Invalid action' }), {
