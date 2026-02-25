@@ -242,8 +242,13 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Asaas payment error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    const isValidationError =
+      message.includes('inválido') ||
+      message.includes('deve ter 11 dígitos') ||
+      message.includes('deve ter 14 dígitos');
+
     return new Response(JSON.stringify({ error: message }), {
-      status: 500,
+      status: isValidationError ? 422 : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
