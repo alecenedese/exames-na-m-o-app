@@ -10,10 +10,12 @@ import {
   Loader2,
   Filter,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Trash2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -21,6 +23,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useAdmin, Appointment } from "@/hooks/useAdmin";
 
 const statusLabels: Record<string, { label: string; className: string }> = {
@@ -31,10 +41,11 @@ const statusLabels: Record<string, { label: string; className: string }> = {
 };
 
 export function AdminAppointmentsTab() {
-  const { appointments, loadingAppointments, clinics } = useAdmin();
+  const { appointments, loadingAppointments, clinics, deleteAppointment } = useAdmin();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [clinicFilter, setClinicFilter] = useState<string>("all");
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filteredAppointments = appointments?.filter((apt) => {
     if (statusFilter !== "all" && apt.status !== statusFilter) return false;
@@ -160,7 +171,6 @@ export function AdminAppointmentsTab() {
                     animate={{ height: "auto", opacity: 1 }}
                     className="mt-4 pt-4 border-t space-y-3"
                   >
-                    {/* Date and Time */}
                     {(appointment.preferred_date || appointment.preferred_time) && (
                       <div className="flex items-center gap-2 text-sm">
                         <Clock className="h-4 w-4 text-muted-foreground" />
@@ -175,7 +185,6 @@ export function AdminAppointmentsTab() {
                       </div>
                     )}
 
-                    {/* Exams */}
                     {appointment.appointment_exams && appointment.appointment_exams.length > 0 && (
                       <div>
                         <p className="text-sm font-medium mb-1">Exames:</p>
@@ -189,7 +198,6 @@ export function AdminAppointmentsTab() {
                       </div>
                     )}
 
-                    {/* Notes */}
                     {appointment.notes && (
                       <div>
                         <p className="text-sm font-medium mb-1">Observações:</p>
@@ -197,14 +205,24 @@ export function AdminAppointmentsTab() {
                       </div>
                     )}
 
-                    {/* Created At */}
-                    <p className="text-xs text-muted-foreground">
-                      Criado em: {format(
-                        new Date(appointment.created_at), 
-                        "dd/MM/yyyy 'às' HH:mm", 
-                        { locale: ptBR }
-                      )}
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        Criado em: {format(
+                          new Date(appointment.created_at), 
+                          "dd/MM/yyyy 'às' HH:mm", 
+                          { locale: ptBR }
+                        )}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-600 border-red-200 hover:bg-red-50"
+                        onClick={() => setDeleteId(appointment.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Excluir
+                      </Button>
+                    </div>
                   </motion.div>
                 )}
               </motion.div>
@@ -212,6 +230,41 @@ export function AdminAppointmentsTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Dialog */}
+      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir Agendamento</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteId(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteAppointment.isPending}
+              onClick={() => {
+                if (deleteId) {
+                  deleteAppointment.mutate(deleteId, {
+                    onSuccess: () => setDeleteId(null),
+                  });
+                }
+              }}
+            >
+              {deleteAppointment.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-1" />
+              )}
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

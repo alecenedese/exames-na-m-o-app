@@ -14,7 +14,8 @@ import {
   XCircle,
   MessageCircle,
   CalendarDays,
-  Filter
+  Filter,
+  Trash2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useClinicAdmin } from "@/hooks/useClinicAdmin";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -35,9 +44,10 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 };
 
 export function ClinicAppointmentsTab() {
-  const { clinic, appointments, loadingAppointments, updateAppointmentStatus } = useClinicAdmin();
+  const { clinic, appointments, loadingAppointments, updateAppointmentStatus, deleteAppointment } = useClinicAdmin();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filteredAppointments = appointments?.filter((apt) => {
     if (statusFilter !== "all" && apt.status !== statusFilter) return false;
@@ -266,14 +276,25 @@ export function ClinicAppointmentsTab() {
                           </Button>
                         )}
 
-                        {/* Created At */}
-                        <p className="text-xs text-muted-foreground text-center">
-                          Agendado em: {format(
-                            new Date(appointment.created_at), 
-                            "dd/MM/yyyy 'às' HH:mm", 
-                            { locale: ptBR }
-                          )}
-                        </p>
+                        {/* Delete */}
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground">
+                            Agendado em: {format(
+                              new Date(appointment.created_at), 
+                              "dd/MM/yyyy 'às' HH:mm", 
+                              { locale: ptBR }
+                            )}
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 border-red-200 hover:bg-red-50"
+                            onClick={() => setDeleteId(appointment.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Excluir
+                          </Button>
+                        </div>
                       </div>
                     </motion.div>
                   )}
@@ -283,6 +304,41 @@ export function ClinicAppointmentsTab() {
           </div>
         )}
       </motion.div>
+
+      {/* Delete Dialog */}
+      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir Agendamento</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteId(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteAppointment.isPending}
+              onClick={() => {
+                if (deleteId) {
+                  deleteAppointment.mutate(deleteId, {
+                    onSuccess: () => setDeleteId(null),
+                  });
+                }
+              }}
+            >
+              {deleteAppointment.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-1" />
+              )}
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

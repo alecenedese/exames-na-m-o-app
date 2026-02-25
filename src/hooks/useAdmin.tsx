@@ -337,6 +337,31 @@ export function useAdmin() {
     },
   });
 
+  // Delete appointment
+  const deleteAppointment = useMutation({
+    mutationFn: async (id: string) => {
+      // Delete appointment exams first
+      const { error: examsError } = await supabase
+        .from('appointment_exams')
+        .delete()
+        .eq('appointment_id', id);
+      if (examsError) throw examsError;
+
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Agendamento excluído!');
+      queryClient.invalidateQueries({ queryKey: ['admin-appointments'] });
+    },
+    onError: (error) => {
+      toast.error('Erro ao excluir: ' + error.message);
+    },
+  });
+
   // Set clinic exam price
   const setClinicPrice = useMutation({
     mutationFn: async ({ 
@@ -391,6 +416,7 @@ export function useAdmin() {
     approveClinic,
     rejectClinic,
     deleteClinic,
+    deleteAppointment,
     createExamType,
     updateExamType,
     deleteExamType,
