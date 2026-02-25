@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QrCode, Copy, Check, Loader2, ExternalLink, CreditCard, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,7 +56,28 @@ export function ClinicPaymentTab() {
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card'>('pix');
   const [selectedPlan, setSelectedPlan] = useState<'anual' | 'semestral'>('anual');
   const { toast } = useToast();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const [clinicCnpj, setClinicCnpj] = useState<string | null>(null);
+
+  // Fetch clinic CNPJ from registration
+  useEffect(() => {
+    async function fetchCnpj() {
+      if (!user) return;
+      const { data } = await supabase
+        .from('clinic_registrations')
+        .select('cnpj')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (data?.cnpj) {
+        setClinicCnpj(data.cnpj.replace(/\D/g, ''));
+      }
+    }
+    fetchCnpj();
+  }, [user]);
+
+  // Use CNPJ if clinic has one, otherwise fall back to CPF
+  const getDocumento = () => clinicCnpj || profile?.cpf?.replace(/\D/g, '') || '';
+
 
   // Card form state
   const [cardData, setCardData] = useState({
@@ -107,8 +128,9 @@ export function ClinicPaymentTab() {
   };
 
   const handleGeneratePix = async () => {
-    if (!profile?.cpf) {
-      toast({ title: 'CPF necessário', description: 'Atualize seu CPF no perfil.', variant: 'destructive' });
+    const doc = getDocumento();
+    if (!doc) {
+      toast({ title: 'Documento necessário', description: 'CNPJ ou CPF não encontrado.', variant: 'destructive' });
       return;
     }
     setLoading(true);
@@ -116,9 +138,9 @@ export function ClinicPaymentTab() {
       const { data, error } = await supabase.functions.invoke('asaas-payment', {
         body: {
           action: 'create-pix',
-          name: profile.name,
-          cpfCnpj: profile.cpf.replace(/\D/g, ''),
-          phone: profile.phone?.replace(/\D/g, '') || '',
+          name: profile?.name || '',
+          cpfCnpj: doc,
+          phone: profile?.phone?.replace(/\D/g, '') || '',
           value: currentPlan.pixPrice,
           description: getPlanDescription(),
         },
@@ -137,8 +159,9 @@ export function ClinicPaymentTab() {
 
   const handleCardPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile?.cpf) {
-      toast({ title: 'CPF necessário', description: 'Atualize seu CPF no perfil.', variant: 'destructive' });
+    const doc = getDocumento();
+    if (!doc) {
+      toast({ title: 'Documento necessário', description: 'CNPJ ou CPF não encontrado.', variant: 'destructive' });
       return;
     }
     const cep = holderInfo.postalCode.replace(/\D/g, '');
@@ -159,8 +182,8 @@ export function ClinicPaymentTab() {
       const { data, error } = await supabase.functions.invoke('asaas-payment', {
         body: {
           action: 'create-credit-card',
-          name: profile.name,
-          cpfCnpj: profile.cpf.replace(/\D/g, ''),
+          name: profile?.name || '',
+          cpfCnpj: doc,
           email: holderInfo.email,
           phone: holderInfo.phone?.replace(/\D/g, '') || profile.phone?.replace(/\D/g, '') || '',
           value: currentPlan.price,
