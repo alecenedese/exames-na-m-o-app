@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
 
     // === PIX PAYMENT ===
     if (action === 'create-pix') {
-      const { name, cpfCnpj, phone } = body;
+      const { name, cpfCnpj, phone, value, description: desc } = body;
       const customerId = await getOrCreateCustomer(name, cpfCnpj, undefined, phone);
 
       const dueDate = new Date();
@@ -79,9 +79,9 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           customer: customerId,
           billingType: 'PIX',
-          value: 99.90,
+          value: value || 455.05,
           dueDate: dueDate.toISOString().split('T')[0],
-          description: 'Plano Clínica - Exames na Mão (Mensal)',
+          description: desc || 'Plano Clínica - Exames na Mão',
           externalReference: userId,
         }),
       });
@@ -118,38 +118,45 @@ Deno.serve(async (req) => {
 
     // === CREDIT CARD PAYMENT ===
     if (action === 'create-credit-card') {
-      const { name, cpfCnpj, email, phone, creditCard, holderInfo } = body;
+      const { name, cpfCnpj, email, phone, creditCard, holderInfo, value, installmentCount, description: desc } = body;
       const customerId = await getOrCreateCustomer(name, cpfCnpj, email, phone);
 
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 1);
 
+      const paymentBody: Record<string, unknown> = {
+        customer: customerId,
+        billingType: 'CREDIT_CARD',
+        value: value || 479.00,
+        dueDate: dueDate.toISOString().split('T')[0],
+        description: desc || 'Plano Clínica - Exames na Mão',
+        externalReference: userId,
+        creditCard: {
+          holderName: creditCard.holderName,
+          number: creditCard.number,
+          expiryMonth: creditCard.expiryMonth,
+          expiryYear: creditCard.expiryYear,
+          ccv: creditCard.ccv,
+        },
+        creditCardHolderInfo: {
+          name: holderInfo.name,
+          email: holderInfo.email || `${cpfCnpj}@examesnamao.com`,
+          cpfCnpj: holderInfo.cpfCnpj,
+          postalCode: holderInfo.postalCode,
+          addressNumber: holderInfo.addressNumber,
+          phone: holderInfo.phone || phone,
+        },
+      };
+
+      if (installmentCount && installmentCount > 1) {
+        paymentBody.installmentCount = installmentCount;
+        paymentBody.installmentValue = Number(((value || 479.00) / installmentCount).toFixed(2));
+      }
+
       const paymentRes = await fetch(`${ASAAS_BASE_URL}/payments`, {
         method: 'POST',
         headers: asaasHeaders,
-        body: JSON.stringify({
-          customer: customerId,
-          billingType: 'CREDIT_CARD',
-          value: 99.90,
-          dueDate: dueDate.toISOString().split('T')[0],
-          description: 'Plano Clínica - Exames na Mão (Mensal)',
-          externalReference: userId,
-          creditCard: {
-            holderName: creditCard.holderName,
-            number: creditCard.number,
-            expiryMonth: creditCard.expiryMonth,
-            expiryYear: creditCard.expiryYear,
-            ccv: creditCard.ccv,
-          },
-          creditCardHolderInfo: {
-            name: holderInfo.name,
-            email: holderInfo.email || `${cpfCnpj}@examesnamao.com`,
-            cpfCnpj: holderInfo.cpfCnpj,
-            postalCode: holderInfo.postalCode,
-            addressNumber: holderInfo.addressNumber,
-            phone: holderInfo.phone || phone,
-          },
-        }),
+        body: JSON.stringify(paymentBody),
       });
 
       if (!paymentRes.ok) {

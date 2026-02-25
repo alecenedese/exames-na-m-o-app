@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileLayout } from "@/components/layout/MobileLayout";
-import { TrialBanner } from "@/components/TrialBanner";
+
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useClinicStatus } from "@/hooks/useClinicStatus";
@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 const Admin = () => {
   const { user, loading: authLoading } = useAuth();
   const { isSuperAdmin, checkingAdmin } = useAdmin();
-  const { isClinicOwner, isTrialPeriod, daysRemaining, loading: clinicLoading } = useClinicStatus();
+  const { isClinicOwner, loading: clinicLoading } = useClinicStatus();
   
   const defaultTab = isSuperAdmin ? "clinics" : "payment";
   const [activeTab, setActiveTab] = useState(defaultTab);
@@ -122,10 +122,7 @@ const Admin = () => {
   return (
     <MobileLayout showHeader={false}>
       <div className="min-h-screen bg-background">
-        {/* Trial Banner for Clinic Owners */}
-        {isClinicOwner && !isSuperAdmin && isTrialPeriod && (
-          <TrialBanner daysRemaining={daysRemaining} />
-        )}
+
 
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-5 pt-12 pb-6 safe-area-top">
