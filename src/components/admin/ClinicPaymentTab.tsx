@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { QrCode, Copy, Check, Loader2, ExternalLink, CreditCard } from 'lucide-react';
+import { QrCode, Copy, Check, Loader2, ExternalLink, CreditCard, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,11 +8,45 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface PaymentResult {
   payment: { id: string; value: number; status: string; invoiceUrl: string; dueDate?: string };
   pix?: { qrCodeImage: string; qrCodePayload: string; expirationDate: string } | null;
 }
+
+interface Plan {
+  id: 'anual' | 'semestral';
+  label: string;
+  price: number;
+  pixPrice: number;
+  installments: number;
+  installmentValue: number;
+  description: string;
+  badge?: string;
+}
+
+const plans: Plan[] = [
+  {
+    id: 'anual',
+    label: 'Anual',
+    price: 479.00,
+    pixPrice: 455.05, // 5% discount
+    installments: 12,
+    installmentValue: Math.ceil((479.00 / 12) * 100) / 100,
+    description: 'Melhor custo-benefício',
+    badge: 'Mais popular',
+  },
+  {
+    id: 'semestral',
+    label: 'Semestral',
+    price: 240.00,
+    pixPrice: 228.00, // 5% discount
+    installments: 6,
+    installmentValue: Math.ceil((240.00 / 6) * 100) / 100,
+    description: '6 meses de acesso',
+  },
+];
 
 export function ClinicPaymentTab() {
   const [copied, setCopied] = useState(false);
@@ -20,6 +54,7 @@ export function ClinicPaymentTab() {
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card'>('pix');
+  const [selectedPlan, setSelectedPlan] = useState<'anual' | 'semestral'>('anual');
   const { toast } = useToast();
   const { profile } = useAuth();
 
@@ -32,11 +67,14 @@ export function ClinicPaymentTab() {
   });
   const [address, setAddress] = useState({ street: '', neighborhood: '', city: '', state: '' });
   const [fetchingCep, setFetchingCep] = useState(false);
+  const [installmentCount, setInstallmentCount] = useState(1);
 
-  const planPrice = 99.90;
+  const currentPlan = plans.find(p => p.id === selectedPlan)!;
 
   const formatCardNumber = (v: string) =>
     v.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ').slice(0, 19);
+
+  const formatCurrency = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 
   const handleCepBlur = async () => {
     const cep = holderInfo.postalCode.replace(/\D/g, '');
@@ -62,6 +100,12 @@ export function ClinicPaymentTab() {
     }
   };
 
+  const getPlanDescription = () => {
+    return currentPlan.id === 'anual'
+      ? 'Plano Clínica - Exames na Mão (Anual)'
+      : 'Plano Clínica - Exames na Mão (Semestral)';
+  };
+
   const handleGeneratePix = async () => {
     if (!profile?.cpf) {
       toast({ title: 'CPF necessário', description: 'Atualize seu CPF no perfil.', variant: 'destructive' });
@@ -75,6 +119,8 @@ export function ClinicPaymentTab() {
           name: profile.name,
           cpfCnpj: profile.cpf.replace(/\D/g, ''),
           phone: profile.phone?.replace(/\D/g, '') || '',
+          value: currentPlan.pixPrice,
+          description: getPlanDescription(),
         },
       });
       if (error) throw error;
@@ -117,6 +163,9 @@ export function ClinicPaymentTab() {
           cpfCnpj: profile.cpf.replace(/\D/g, ''),
           email: holderInfo.email,
           phone: holderInfo.phone?.replace(/\D/g, '') || profile.phone?.replace(/\D/g, '') || '',
+          value: currentPlan.price,
+          installmentCount: installmentCount > 1 ? installmentCount : undefined,
+          description: getPlanDescription(),
           creditCard: {
             holderName: cardData.holderName,
             number: cardData.number.replace(/\s/g, ''),
@@ -177,7 +226,7 @@ export function ClinicPaymentTab() {
     }
   };
 
-  // If payment was already made, show result
+  // Payment result screen
   if (paymentResult) {
     return (
       <div className="space-y-6">
@@ -241,24 +290,41 @@ export function ClinicPaymentTab() {
 
   return (
     <div className="space-y-6">
-      {/* Plan Summary */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Plano Clínica</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm text-muted-foreground">Mensalidade</p>
-              <p className="text-2xl font-bold text-primary">R$ {planPrice.toFixed(2).replace('.', ',')}</p>
-            </div>
-            <div className="text-right text-sm text-muted-foreground">
-              <p>Acesso completo</p>
-              <p>Renovação mensal</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Plan Selection */}
+      <div>
+        <h3 className="font-semibold text-base mb-3">Escolha seu plano</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {plans.map((plan) => (
+            <button
+              key={plan.id}
+              onClick={() => {
+                setSelectedPlan(plan.id);
+                setInstallmentCount(1);
+              }}
+              className={cn(
+                "relative rounded-xl border-2 p-4 text-left transition-all",
+                selectedPlan === plan.id
+                  ? "border-primary bg-primary/5 shadow-md"
+                  : "border-border hover:border-primary/40"
+              )}
+            >
+              {plan.badge && (
+                <span className="absolute -top-2.5 left-3 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {plan.badge}
+                </span>
+              )}
+              <p className="font-bold text-base">{plan.label}</p>
+              <p className="text-xl font-bold text-primary mt-1">{formatCurrency(plan.price)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                até {plan.installments}x de {formatCurrency(plan.installmentValue)}
+              </p>
+              <p className="text-xs text-green-600 font-medium mt-1">
+                PIX à vista: {formatCurrency(plan.pixPrice)} (5% off)
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Payment Methods */}
       <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as 'pix' | 'card')}>
@@ -277,11 +343,16 @@ export function ClinicPaymentTab() {
         <TabsContent value="pix" className="mt-4">
           <Card>
             <CardContent className="pt-6 space-y-4">
+              <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg text-center">
+                <p className="text-sm font-semibold text-green-700 dark:text-green-400">5% de desconto no PIX!</p>
+                <p className="text-2xl font-bold text-green-700 dark:text-green-400 mt-1">{formatCurrency(currentPlan.pixPrice)}</p>
+                <p className="text-xs text-muted-foreground line-through">{formatCurrency(currentPlan.price)}</p>
+              </div>
               <div className="flex flex-col items-center gap-4 text-center">
                 <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
                   <QrCode className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <p className="text-sm text-muted-foreground">Gere um QR Code PIX para pagamento instantâneo</p>
+                <p className="text-sm text-muted-foreground">Gere um QR Code PIX para pagamento à vista</p>
                 <Button onClick={handleGeneratePix} disabled={loading} className="w-full h-12">
                   {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Gerando PIX...</> : <><QrCode className="w-4 h-4 mr-2" />Gerar QR Code PIX</>}
                 </Button>
@@ -295,6 +366,26 @@ export function ClinicPaymentTab() {
           <Card>
             <CardContent className="pt-6">
               <form onSubmit={handleCardPayment} className="space-y-4">
+                {/* Installments */}
+                <div className="space-y-2">
+                  <Label htmlFor="installments">Parcelas</Label>
+                  <select
+                    id="installments"
+                    className="w-full h-12 rounded-md border border-input bg-background px-3 text-sm"
+                    value={installmentCount}
+                    onChange={(e) => setInstallmentCount(Number(e.target.value))}
+                  >
+                    {Array.from({ length: currentPlan.installments }, (_, i) => i + 1).map((n) => {
+                      const val = currentPlan.price / n;
+                      return (
+                        <option key={n} value={n}>
+                          {n}x de {formatCurrency(val)} {n === 1 ? '(à vista)' : 'sem juros'}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
                 {/* Card info */}
                 <div className="space-y-2">
                   <Label htmlFor="cardNumber">Número do cartão</Label>
@@ -432,7 +523,9 @@ export function ClinicPaymentTab() {
                   {loading ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processando...</>
                   ) : (
-                    `Pagar R$ ${planPrice.toFixed(2).replace('.', ',')}`
+                    installmentCount > 1
+                      ? `Pagar ${installmentCount}x de ${formatCurrency(currentPlan.price / installmentCount)}`
+                      : `Pagar ${formatCurrency(currentPlan.price)}`
                   )}
                 </Button>
               </form>
