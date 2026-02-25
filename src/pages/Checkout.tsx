@@ -1,67 +1,98 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CreditCard, QrCode, Copy, Check } from 'lucide-react';
+import { ArrowLeft, QrCode, Copy, Check, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+
+interface PaymentData {
+  payment: { id: string; value: number; status: string; invoiceUrl: string; dueDate: string };
+  pix: { qrCodeImage: string; qrCodePayload: string; expirationDate: string } | null;
+}
 
 export default function Checkout() {
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card'>('pix');
   const [copied, setCopied] = useState(false);
-  const [cardData, setCardData] = useState({
-    number: '',
-    name: '',
-    expiry: '',
-    cvv: '',
-  });
+  const [loading, setLoading] = useState(false);
+  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const { toast } = useToast();
+  const { profile } = useAuth();
 
   const planPrice = 99.90;
-  const pixCode = 'EXAMENAMAO2024PAGAMENTOMENSAL';
 
-  const formatCardNumber = (value: string) => {
-    return value
-      .replace(/\D/g, '')
-      .replace(/(\d{4})(\d)/, '$1 $2')
-      .replace(/(\d{4}) (\d{4})(\d)/, '$1 $2 $3')
-      .replace(/(\d{4}) (\d{4}) (\d{4})(\d)/, '$1 $2 $3 $4')
-      .slice(0, 19);
-  };
+  const handleGeneratePix = async () => {
+    if (!profile) {
+      toast({ title: 'Erro', description: 'Você precisa estar logado.', variant: 'destructive' });
+      return;
+    }
 
-  const formatExpiry = (value: string) => {
-    return value
-      .replace(/\D/g, '')
-      .replace(/(\d{2})(\d)/, '$1/$2')
-      .slice(0, 5);
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('asaas-payment', {
+        body: {
+          action: 'create-payment',
+          name: profile.name,
+          cpfCnpj: profile.cpf?.replace(/\D/g, '') || '',
+          email: '',
+          phone: profile.phone?.replace(/\D/g, '') || '',
+        },
+      });
+
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error || 'Erro ao gerar pagamento');
+
+      setPaymentData(data);
+      toast({ title: 'PIX gerado!', description: 'Escaneie o QR Code ou copie o código.' });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Erro', description: 'Não foi possível gerar o pagamento. Verifique seus dados de CPF no perfil.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCopyPix = () => {
-    navigator.clipboard.writeText(pixCode);
+    if (!paymentData?.pix?.qrCodePayload) return;
+    navigator.clipboard.writeText(paymentData.pix.qrCodePayload);
     setCopied(true);
-    toast({
-      title: 'Código copiado!',
-      description: 'Cole no seu aplicativo de pagamento',
-    });
+    toast({ title: 'Código copiado!', description: 'Cole no seu aplicativo de pagamento.' });
     setTimeout(() => setCopied(false), 3000);
   };
 
-  const handleCardSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast({
-      title: 'Pagamento processado!',
-      description: 'Seu plano foi ativado com sucesso.',
-    });
+  const handleCheckStatus = async () => {
+    if (!paymentData?.payment?.id) return;
+    setCheckingStatus(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('asaas-payment', {
+        body: { action: 'check-status', paymentId: paymentData.payment.id },
+      });
+      if (error) throw error;
+
+      if (data.status === 'RECEIVED' || data.status === 'CONFIRMED') {
+        toast({ title: '🎉 Pagamento confirmado!', description: 'Seu plano foi ativado com sucesso.' });
+      } else if (data.status === 'PENDING') {
+        toast({ title: 'Aguardando pagamento', description: 'Ainda não identificamos o pagamento.' });
+      } else {
+        toast({ title: `Status: ${data.status}`, description: 'Verifique o status do seu pagamento.' });
+      }
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Erro', description: 'Não foi possível verificar o status.', variant: 'destructive' });
+    } finally {
+      setCheckingStatus(false);
+    }
   };
 
   return (
     <div className="mobile-container bg-background min-h-screen">
       <header className="p-4 border-b">
         <div className="flex items-center gap-3">
-          <Link to="/">
+          <Link to="/admin">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -70,7 +101,7 @@ export default function Checkout() {
         </div>
       </header>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="p-4 space-y-6"
@@ -90,137 +121,109 @@ export default function Checkout() {
               </div>
               <div className="text-right text-sm text-muted-foreground">
                 <p>Acesso completo</p>
-                <p>Renovação automática</p>
+                <p>Renovação mensal</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Payment Methods */}
-        <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as 'pix' | 'card')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="pix" className="gap-2">
-              <QrCode className="w-4 h-4" />
-              PIX
-            </TabsTrigger>
-            <TabsTrigger value="card" className="gap-2">
-              <CreditCard className="w-4 h-4" />
-              Cartão
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="pix" className="mt-4">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <div className="flex justify-center">
-                  <div className="w-48 h-48 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
-                    <QrCode className="w-24 h-24 text-muted-foreground" />
-                  </div>
+        {/* PIX Payment */}
+        {!paymentData ? (
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+                  <QrCode className="w-8 h-8 text-muted-foreground" />
                 </div>
+                <div>
+                  <h3 className="font-semibold">Pague via PIX</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Gere um QR Code PIX para pagamento instantâneo
+                  </p>
+                </div>
+                <Button onClick={handleGeneratePix} disabled={loading} className="w-full h-12">
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Gerando PIX...
+                    </>
+                  ) : (
+                    <>
+                      <QrCode className="w-4 h-4 mr-2" />
+                      Gerar QR Code PIX
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              {/* QR Code */}
+              {paymentData.pix?.qrCodeImage && (
+                <div className="flex justify-center">
+                  <img
+                    src={`data:image/png;base64,${paymentData.pix.qrCodeImage}`}
+                    alt="QR Code PIX"
+                    className="w-48 h-48 rounded-lg"
+                  />
+                </div>
+              )}
 
+              {/* Copy & Paste PIX */}
+              {paymentData.pix?.qrCodePayload && (
                 <div className="space-y-2">
                   <Label>Código PIX Copia e Cola</Label>
                   <div className="flex gap-2">
-                    <Input 
-                      value={pixCode} 
-                      readOnly 
+                    <Input
+                      value={paymentData.pix.qrCodePayload}
+                      readOnly
                       className="font-mono text-xs"
                     />
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      onClick={handleCopyPix}
-                    >
-                      {copied ? (
-                        <Check className="w-4 h-4 text-primary" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
+                    <Button variant="outline" size="icon" onClick={handleCopyPix}>
+                      {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
                     </Button>
                   </div>
                 </div>
+              )}
 
-                <p className="text-xs text-muted-foreground text-center">
-                  Após o pagamento, seu plano será ativado automaticamente em até 5 minutos.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              {/* Invoice link */}
+              {paymentData.payment.invoiceUrl && (
+                <Button variant="outline" className="w-full" asChild>
+                  <a href={paymentData.payment.invoiceUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Ver fatura completa
+                  </a>
+                </Button>
+              )}
 
-          <TabsContent value="card" className="mt-4">
-            <Card>
-              <CardContent className="pt-6">
-                <form onSubmit={handleCardSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cardNumber">Número do cartão</Label>
-                    <Input
-                      id="cardNumber"
-                      placeholder="0000 0000 0000 0000"
-                      value={cardData.number}
-                      onChange={(e) => setCardData(prev => ({ 
-                        ...prev, 
-                        number: formatCardNumber(e.target.value) 
-                      }))}
-                      className="h-12"
-                    />
-                  </div>
+              {/* Check status */}
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={handleCheckStatus}
+                disabled={checkingStatus}
+              >
+                {checkingStatus ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Verificando...
+                  </>
+                ) : (
+                  'Já paguei - Verificar pagamento'
+                )}
+              </Button>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="cardName">Nome no cartão</Label>
-                    <Input
-                      id="cardName"
-                      placeholder="Como está no cartão"
-                      value={cardData.name}
-                      onChange={(e) => setCardData(prev => ({ 
-                        ...prev, 
-                        name: e.target.value.toUpperCase() 
-                      }))}
-                      className="h-12"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="expiry">Validade</Label>
-                      <Input
-                        id="expiry"
-                        placeholder="MM/AA"
-                        value={cardData.expiry}
-                        onChange={(e) => setCardData(prev => ({ 
-                          ...prev, 
-                          expiry: formatExpiry(e.target.value) 
-                        }))}
-                        className="h-12"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="cvv">CVV</Label>
-                      <Input
-                        id="cvv"
-                        placeholder="000"
-                        value={cardData.cvv}
-                        onChange={(e) => setCardData(prev => ({ 
-                          ...prev, 
-                          cvv: e.target.value.replace(/\D/g, '').slice(0, 4) 
-                        }))}
-                        className="h-12"
-                        type="password"
-                      />
-                    </div>
-                  </div>
-
-                  <Button type="submit" className="w-full h-12 font-semibold">
-                    Pagar R$ {planPrice.toFixed(2).replace('.', ',')}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              <p className="text-xs text-muted-foreground text-center">
+                Após o pagamento, seu plano será ativado automaticamente.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <p className="text-xs text-muted-foreground text-center">
-          Pagamento seguro. Seus dados estão protegidos.
+          Pagamento seguro processado via Asaas.
         </p>
       </motion.div>
     </div>

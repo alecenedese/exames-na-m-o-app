@@ -19,7 +19,7 @@ export function TrialBanner({ daysRemaining = 7 }: TrialBannerProps) {
         variant="secondary"
         className="shrink-0 bg-white text-orange-600 hover:bg-orange-50"
       >
-        <Link to="/checkout">Pagar</Link>
+        <Link to="/admin">Pagar</Link>
       </Button>
     </div>
   );

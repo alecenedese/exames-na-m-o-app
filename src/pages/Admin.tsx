@@ -10,7 +10,8 @@ import {
   Shield,
   Home,
   Settings,
-  ChevronLeft
+  ChevronLeft,
+  CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileLayout } from "@/components/layout/MobileLayout";
@@ -25,6 +26,7 @@ import { AdminAppointmentsTab } from "@/components/admin/AdminAppointmentsTab";
 import { ClinicProfileTab } from "@/components/admin/ClinicProfileTab";
 import { ClinicPricesTab } from "@/components/admin/ClinicPricesTab";
 import { ClinicAppointmentsTab } from "@/components/admin/ClinicAppointmentsTab";
+import { ClinicPaymentTab } from "@/components/admin/ClinicPaymentTab";
 import { cn } from "@/lib/utils";
 
 const Admin = () => {
@@ -32,12 +34,12 @@ const Admin = () => {
   const { isSuperAdmin, checkingAdmin } = useAdmin();
   const { isClinicOwner, isTrialPeriod, daysRemaining, loading: clinicLoading } = useClinicStatus();
   
-  const defaultTab = isSuperAdmin ? "clinics" : "profile";
+  const defaultTab = isSuperAdmin ? "clinics" : "payment";
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   useEffect(() => {
     if (!checkingAdmin && !clinicLoading) {
-      setActiveTab(isSuperAdmin ? "clinics" : "profile");
+      setActiveTab(isSuperAdmin ? "clinics" : "payment");
     }
   }, [isSuperAdmin, checkingAdmin, clinicLoading]);
 
@@ -89,6 +91,7 @@ const Admin = () => {
 
   // Tabs for clinic owners
   const clinicTabs = [
+    { id: "payment", label: "Pagamento", icon: CreditCard },
     { id: "profile", label: "Clínica", icon: Settings },
     { id: "prices", label: "Preços", icon: DollarSign },
     { id: "appointments", label: "Agenda", icon: Calendar },
@@ -107,6 +110,7 @@ const Admin = () => {
       }
     } else {
       switch (activeTab) {
+        case "payment": return <ClinicPaymentTab />;
         case "profile": return <ClinicProfileTab />;
         case "prices": return <ClinicPricesTab />;
         case "appointments": return <ClinicAppointmentsTab />;
