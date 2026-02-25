@@ -248,6 +248,30 @@ export function useClinicAdmin() {
     },
   });
 
+  // Delete appointment
+  const deleteAppointment = useMutation({
+    mutationFn: async (id: string) => {
+      const { error: examsError } = await supabase
+        .from('appointment_exams')
+        .delete()
+        .eq('appointment_id', id);
+      if (examsError) throw examsError;
+
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Agendamento excluído!');
+      queryClient.invalidateQueries({ queryKey: ['my-clinic-appointments'] });
+    },
+    onError: (error) => {
+      toast.error('Erro ao excluir: ' + error.message);
+    },
+  });
+
   return {
     clinic,
     registration,
@@ -263,5 +287,6 @@ export function useClinicAdmin() {
     updateRegistration,
     setExamPrice,
     updateAppointmentStatus,
+    deleteAppointment,
   };
 }
