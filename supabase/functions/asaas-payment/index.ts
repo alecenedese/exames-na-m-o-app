@@ -43,9 +43,52 @@ Deno.serve(async (req) => {
       'access_token': ASAAS_API_KEY,
     };
 
+    // CPF/CNPJ validation helpers
+    function isValidCPF(cpf: string): boolean {
+      if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+      let sum = 0;
+      for (let i = 0; i < 9; i++) sum += parseInt(cpf[i]) * (10 - i);
+      let rest = (sum * 10) % 11;
+      if (rest === 10) rest = 0;
+      if (rest !== parseInt(cpf[9])) return false;
+      sum = 0;
+      for (let i = 0; i < 10; i++) sum += parseInt(cpf[i]) * (11 - i);
+      rest = (sum * 10) % 11;
+      if (rest === 10) rest = 0;
+      return rest === parseInt(cpf[10]);
+    }
+
+    function isValidCNPJ(cnpj: string): boolean {
+      if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+      const weights1 = [5,4,3,2,9,8,7,6,5,4,3,2];
+      const weights2 = [6,5,4,3,2,9,8,7,6,5,4,3,2];
+      let sum = 0;
+      for (let i = 0; i < 12; i++) sum += parseInt(cnpj[i]) * weights1[i];
+      let rest = sum % 11;
+      const d1 = rest < 2 ? 0 : 11 - rest;
+      if (parseInt(cnpj[12]) !== d1) return false;
+      sum = 0;
+      for (let i = 0; i < 13; i++) sum += parseInt(cnpj[i]) * weights2[i];
+      rest = sum % 11;
+      const d2 = rest < 2 ? 0 : 11 - rest;
+      return parseInt(cnpj[13]) === d2;
+    }
+
     // Helper: find or create customer
     async function getOrCreateCustomer(name: string, cpfCnpj: string, email?: string, phone?: string) {
-      const searchRes = await fetch(`${ASAAS_BASE_URL}/customers?cpfCnpj=${cpfCnpj}`, { headers: asaasHeaders });
+      // Validate CPF/CNPJ before sending to Asaas
+      const cleaned = cpfCnpj.replace(/\D/g, '');
+      if (cleaned.length === 11 && !isValidCPF(cleaned)) {
+        throw new Error('CPF informado é inválido. Verifique os dados e tente novamente.');
+      }
+      if (cleaned.length === 14 && !isValidCNPJ(cleaned)) {
+        throw new Error('CNPJ informado é inválido. Verifique os dados e tente novamente.');
+      }
+      if (cleaned.length !== 11 && cleaned.length !== 14) {
+        throw new Error('CPF deve ter 11 dígitos e CNPJ deve ter 14 dígitos.');
+      }
+
+      const searchRes = await fetch(`${ASAAS_BASE_URL}/customers?cpfCnpj=${cleaned}`, { headers: asaasHeaders });
       const searchData = await searchRes.json();
 
       if (searchData.data && searchData.data.length > 0) {
@@ -55,11 +98,11 @@ Deno.serve(async (req) => {
       const customerRes = await fetch(`${ASAAS_BASE_URL}/customers`, {
         method: 'POST',
         headers: asaasHeaders,
-        body: JSON.stringify({ name, cpfCnpj, email: email || undefined, mobilePhone: phone || undefined }),
+        body: JSON.stringify({ name, cpfCnpj: cleaned, email: email || undefined, mobilePhone: phone || undefined }),
       });
       if (!customerRes.ok) {
         const err = await customerRes.text();
-        throw new Error(`Asaas customer creation failed [${customerRes.status}]: ${err}`);
+        throw new Error(`Falha ao criar cliente no Asaas: ${err}`);
       }
       const customerData = await customerRes.json();
       return customerData.id;
