@@ -75,10 +75,49 @@ export function ClinicPaymentTab() {
     fetchCnpj();
   }, [user]);
 
-  // Use CNPJ if clinic has one, otherwise fall back to CPF
-  const getDocumento = () => clinicCnpj || profile?.cpf?.replace(/\D/g, '') || '';
+  const isValidCPF = (cpf: string) => {
+    if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += Number(cpf[i]) * (10 - i);
+    let rest = (sum * 10) % 11;
+    if (rest === 10) rest = 0;
+    if (rest !== Number(cpf[9])) return false;
+    sum = 0;
+    for (let i = 0; i < 10; i++) sum += Number(cpf[i]) * (11 - i);
+    rest = (sum * 10) % 11;
+    if (rest === 10) rest = 0;
+    return rest === Number(cpf[10]);
+  };
 
+  const isValidCNPJ = (cnpj: string) => {
+    if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+    const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    const w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let sum = 0;
+    for (let i = 0; i < 12; i++) sum += Number(cnpj[i]) * w1[i];
+    let rest = sum % 11;
+    const d1 = rest < 2 ? 0 : 11 - rest;
+    if (Number(cnpj[12]) !== d1) return false;
+    sum = 0;
+    for (let i = 0; i < 13; i++) sum += Number(cnpj[i]) * w2[i];
+    rest = sum % 11;
+    const d2 = rest < 2 ? 0 : 11 - rest;
+    return Number(cnpj[13]) === d2;
+  };
 
+  const getDocumento = () => {
+    const cnpj = clinicCnpj?.replace(/\D/g, '') || '';
+    const cpf = profile?.cpf?.replace(/\D/g, '') || '';
+
+    if (cnpj) {
+      if (isValidCNPJ(cnpj)) return cnpj;
+      if (cpf && isValidCPF(cpf)) return cpf;
+      return '';
+    }
+
+    if (cpf && isValidCPF(cpf)) return cpf;
+    return '';
+  };
   // Card form state
   const [cardData, setCardData] = useState({
     number: '', holderName: '', expiryMonth: '', expiryYear: '', ccv: '',
@@ -130,7 +169,7 @@ export function ClinicPaymentTab() {
   const handleGeneratePix = async () => {
     const doc = getDocumento();
     if (!doc) {
-      toast({ title: 'Documento necessário', description: 'CNPJ ou CPF não encontrado.', variant: 'destructive' });
+      toast({ title: 'Documento inválido', description: 'Corrija o CNPJ da clínica ou informe um CPF válido.', variant: 'destructive' });
       return;
     }
     setLoading(true);
@@ -149,9 +188,10 @@ export function ClinicPaymentTab() {
       if (!data.success) throw new Error(data.error);
       setPaymentResult(data);
       toast({ title: 'PIX gerado!', description: 'Escaneie o QR Code ou copie o código.' });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast({ title: 'Erro', description: 'Não foi possível gerar o PIX.', variant: 'destructive' });
+      const message = err?.context?.json?.error || err?.message || 'Não foi possível gerar o PIX.';
+      toast({ title: 'Erro', description: message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
