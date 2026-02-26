@@ -258,7 +258,7 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
             cpfCnpj: holderInfo.cpfCnpj?.replace(/\D/g, '') || profile.cpf.replace(/\D/g, ''),
             postalCode: cep,
             addressNumber: holderInfo.addressNumber,
-            phone: holderInfo.phone?.replace(/\D/g, '') || profile.phone?.replace(/\D/g, '') || '',
+            phone: holderInfo.phone?.replace(/\D/g, '') || profile.phone?.replace(/\D/g, '') || clinicPhone || '',
           },
         },
       });
