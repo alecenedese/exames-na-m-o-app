@@ -41,7 +41,7 @@ const plans: Plan[] = [
     id: 'semestral',
     label: 'Semestral',
     price: 5.00,
-    pixPrice: 4.75,
+    pixPrice: 5.00,
     installments: 6,
     installmentValue: Math.ceil((5.00 / 6) * 100) / 100,
     description: '6 meses de acesso',
