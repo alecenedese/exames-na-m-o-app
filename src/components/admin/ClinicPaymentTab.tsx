@@ -615,6 +615,13 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
         </TabsContent>
       </Tabs>
 
+      {showEditButton && onEditProfile && (
+        <Button variant="outline" className="w-full" onClick={onEditProfile}>
+          <Settings className="w-4 h-4 mr-2" />
+          Editar dados de cadastro
+        </Button>
+      )}
+
       <p className="text-xs text-muted-foreground text-center">
         Pagamento seguro processado via Asaas.
       </p>
