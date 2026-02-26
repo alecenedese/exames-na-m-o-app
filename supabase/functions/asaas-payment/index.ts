@@ -29,6 +29,12 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    // Service role client for writing subscriptions
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
     const token = authHeader.replace('Bearer ', '');
     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
     if (claimsError || !claimsData?.claims) {
@@ -92,7 +98,6 @@ Deno.serve(async (req) => {
 
       if (searchData.data && searchData.data.length > 0) {
         const existing = searchData.data[0];
-        // Update customer if email or phone is missing
         const updates: Record<string, string> = {};
         if (!existing.email && email) updates.email = email;
         if (!existing.mobilePhone && phone) updates.mobilePhone = phone;
@@ -119,9 +124,58 @@ Deno.serve(async (req) => {
       return customerData.id;
     }
 
+    // Helper: get clinic_id for user
+    async function getClinicId() {
+      const { data } = await supabaseAdmin
+        .from('clinics')
+        .select('id')
+        .eq('admin_user_id', (await supabaseAdmin.from('profiles').select('id').eq('user_id', userId).single()).data?.id)
+        .single();
+      return data?.id;
+    }
+
+    // Helper: save or update subscription
+    async function saveSubscription(paymentId: string, plan: string, method: string, amount: number, status: string) {
+      const clinicId = await getClinicId();
+      if (!clinicId) return;
+
+      const isConfirmed = status === 'RECEIVED' || status === 'CONFIRMED';
+      const now = new Date();
+      const monthsToAdd = plan === 'anual' ? 12 : 6;
+      const expiresAt = new Date(now);
+      expiresAt.setMonth(expiresAt.getMonth() + monthsToAdd);
+
+      // Check for existing subscription
+      const { data: existing } = await supabaseAdmin
+        .from('clinic_subscriptions')
+        .select('id')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const subData = {
+        clinic_id: clinicId,
+        user_id: userId,
+        plan,
+        payment_id: paymentId,
+        payment_method: method,
+        payment_status: isConfirmed ? 'confirmed' : 'pending',
+        amount,
+        paid_at: isConfirmed ? now.toISOString() : null,
+        expires_at: isConfirmed ? expiresAt.toISOString() : null,
+      };
+
+      if (existing) {
+        await supabaseAdmin.from('clinic_subscriptions').update(subData).eq('id', existing.id);
+      } else {
+        await supabaseAdmin.from('clinic_subscriptions').insert(subData);
+      }
+    }
+
     // === PIX PAYMENT ===
     if (action === 'create-pix') {
-      const { name, cpfCnpj, email, phone, value, description: desc } = body;
+      const { name, cpfCnpj, email, phone, value, description: desc, plan } = body;
       const customerId = await getOrCreateCustomer(name, cpfCnpj, email, phone);
 
       const dueDate = new Date();
@@ -145,6 +199,9 @@ Deno.serve(async (req) => {
         throw new Error(`Asaas PIX payment failed [${paymentRes.status}]: ${err}`);
       }
       const paymentData = await paymentRes.json();
+
+      // Save subscription record as pending
+      await saveSubscription(paymentData.id, plan || 'anual', 'pix', paymentData.value, paymentData.status);
 
       // Get QR Code
       const qrRes = await fetch(`${ASAAS_BASE_URL}/payments/${paymentData.id}/pixQrCode`, { headers: asaasHeaders });
@@ -172,7 +229,7 @@ Deno.serve(async (req) => {
 
     // === CREDIT CARD PAYMENT ===
     if (action === 'create-credit-card') {
-      const { name, cpfCnpj, email, phone, creditCard, holderInfo, value, installmentCount, description: desc } = body;
+      const { name, cpfCnpj, email, phone, creditCard, holderInfo, value, installmentCount, description: desc, plan } = body;
       const customerId = await getOrCreateCustomer(name, cpfCnpj, email, phone);
 
       const dueDate = new Date();
@@ -219,6 +276,9 @@ Deno.serve(async (req) => {
       }
       const paymentData = await paymentRes.json();
 
+      // Save subscription - credit card is usually confirmed immediately
+      await saveSubscription(paymentData.id, plan || 'anual', 'credit_card', paymentData.value, paymentData.status);
+
       return new Response(JSON.stringify({
         success: true,
         payment: {
@@ -239,6 +299,29 @@ Deno.serve(async (req) => {
         throw new Error(`Asaas status check failed [${statusRes.status}]: ${err}`);
       }
       const statusData = await statusRes.json();
+
+      // If payment is confirmed, update subscription
+      if (statusData.status === 'RECEIVED' || statusData.status === 'CONFIRMED') {
+        const { data: sub } = await supabaseAdmin
+          .from('clinic_subscriptions')
+          .select('id, plan')
+          .eq('payment_id', paymentId)
+          .maybeSingle();
+
+        if (sub) {
+          const now = new Date();
+          const monthsToAdd = sub.plan === 'anual' ? 12 : 6;
+          const expiresAt = new Date(now);
+          expiresAt.setMonth(expiresAt.getMonth() + monthsToAdd);
+
+          await supabaseAdmin.from('clinic_subscriptions').update({
+            payment_status: 'confirmed',
+            paid_at: now.toISOString(),
+            expires_at: expiresAt.toISOString(),
+          }).eq('id', sub.id);
+        }
+      }
+
       return new Response(JSON.stringify({
         success: true,
         status: statusData.status,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { QrCode, Copy, Check, Loader2, ExternalLink, CreditCard, Crown } from 'lucide-react';
+import { QrCode, Copy, Check, Loader2, ExternalLink, CreditCard, Crown, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,7 +50,12 @@ const plans: Plan[] = [
 
 const getMonthlyPrice = (plan: Plan) => plan.price / (plan.id === 'anual' ? 12 : 6);
 
-export function ClinicPaymentTab() {
+interface ClinicPaymentTabProps {
+  onPaymentConfirmed?: () => void;
+  onEditProfile?: () => void;
+}
+
+export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPaymentTabProps) {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null);
@@ -59,6 +64,7 @@ export function ClinicPaymentTab() {
   const [selectedPlan, setSelectedPlan] = useState<'anual' | 'semestral'>('anual');
   const { toast } = useToast();
   const { profile, user } = useAuth();
+  const [showEditButton, setShowEditButton] = useState(false);
   const [clinicCnpj, setClinicCnpj] = useState<string | null>(null);
 
   // Fetch clinic CNPJ from registration
@@ -185,6 +191,7 @@ export function ClinicPaymentTab() {
           phone: profile?.phone?.replace(/\D/g, '') || '',
           value: currentPlan.pixPrice,
           description: getPlanDescription(),
+          plan: selectedPlan,
         },
       });
       if (error) throw error;
@@ -195,6 +202,7 @@ export function ClinicPaymentTab() {
       console.error(err);
       const message = err?.context?.json?.error || err?.message || 'Não foi possível gerar o PIX.';
       toast({ title: 'Erro', description: message, variant: 'destructive' });
+      setShowEditButton(true);
     } finally {
       setLoading(false);
     }
@@ -232,6 +240,7 @@ export function ClinicPaymentTab() {
           value: currentPlan.price,
           installmentCount: installmentCount > 1 ? installmentCount : undefined,
           description: getPlanDescription(),
+          plan: selectedPlan,
           creditCard: {
             holderName: cardData.holderName,
             number: cardData.number.replace(/\s/g, ''),
@@ -252,11 +261,13 @@ export function ClinicPaymentTab() {
       if (error) throw error;
       if (!data.success) throw new Error(data.error);
       setPaymentResult(data);
+      onPaymentConfirmed?.();
       toast({ title: '🎉 Pagamento aprovado!', description: 'Seu plano foi ativado com sucesso.' });
     } catch (err: any) {
       console.error(err);
       const msg = err?.message || 'Não foi possível processar o cartão.';
       toast({ title: 'Erro no pagamento', description: msg, variant: 'destructive' });
+      setShowEditButton(true);
     } finally {
       setLoading(false);
     }
@@ -279,6 +290,7 @@ export function ClinicPaymentTab() {
       });
       if (error) throw error;
       if (data.status === 'RECEIVED' || data.status === 'CONFIRMED') {
+        onPaymentConfirmed?.();
         toast({ title: '🎉 Pagamento confirmado!', description: 'Seu plano foi ativado.' });
       } else if (data.status === 'PENDING') {
         toast({ title: 'Aguardando', description: 'Ainda não identificamos o pagamento.' });
@@ -602,6 +614,13 @@ export function ClinicPaymentTab() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {showEditButton && onEditProfile && (
+        <Button variant="outline" className="w-full" onClick={onEditProfile}>
+          <Settings className="w-4 h-4 mr-2" />
+          Editar dados de cadastro
+        </Button>
+      )}
 
       <p className="text-xs text-muted-foreground text-center">
         Pagamento seguro processado via Asaas.

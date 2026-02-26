@@ -215,6 +215,51 @@ export type Database = {
         }
         Relationships: []
       }
+      clinic_subscriptions: {
+        Row: {
+          amount: number
+          clinic_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          paid_at: string | null
+          payment_id: string | null
+          payment_method: string | null
+          payment_status: string
+          plan: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          clinic_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          paid_at?: string | null
+          payment_id?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          plan?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          clinic_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          paid_at?: string | null
+          payment_id?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          plan?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       clinics: {
         Row: {
           address: string
