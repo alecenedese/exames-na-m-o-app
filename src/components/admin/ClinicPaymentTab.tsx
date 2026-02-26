@@ -66,21 +66,25 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
   const { profile, user } = useAuth();
   const [showEditButton, setShowEditButton] = useState(false);
   const [clinicCnpj, setClinicCnpj] = useState<string | null>(null);
+  const [clinicPhone, setClinicPhone] = useState<string | null>(null);
 
-  // Fetch clinic CNPJ from registration
+  // Fetch clinic CNPJ and phone from registration
   useEffect(() => {
-    async function fetchCnpj() {
+    async function fetchClinicData() {
       if (!user) return;
       const { data } = await supabase
         .from('clinic_registrations')
-        .select('cnpj')
+        .select('cnpj, phone, whatsapp')
         .eq('user_id', user.id)
         .maybeSingle();
       if (data?.cnpj) {
         setClinicCnpj(data.cnpj.replace(/\D/g, ''));
       }
+      if (data?.phone || data?.whatsapp) {
+        setClinicPhone((data.phone || data.whatsapp).replace(/\D/g, ''));
+      }
     }
-    fetchCnpj();
+    fetchClinicData();
   }, [user]);
 
   const isValidCPF = (cpf: string) => {
