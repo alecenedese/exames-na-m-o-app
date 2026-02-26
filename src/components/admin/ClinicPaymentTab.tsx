@@ -31,7 +31,7 @@ const plans: Plan[] = [
     id: 'anual',
     label: 'Anual',
     price: 479.00,
-    pixPrice: 455.05, // 5% discount
+    pixPrice: 455.05,
     installments: 12,
     installmentValue: Math.ceil((479.00 / 12) * 100) / 100,
     description: 'Melhor custo-benefício',
@@ -41,12 +41,14 @@ const plans: Plan[] = [
     id: 'semestral',
     label: 'Semestral',
     price: 240.00,
-    pixPrice: 228.00, // 5% discount
+    pixPrice: 228.00,
     installments: 6,
     installmentValue: Math.ceil((240.00 / 6) * 100) / 100,
     description: '6 meses de acesso',
   },
 ];
+
+const getMonthlyPrice = (plan: Plan) => plan.price / (plan.id === 'anual' ? 12 : 6);
 
 export function ClinicPaymentTab() {
   const [copied, setCopied] = useState(false);
@@ -377,12 +379,15 @@ export function ClinicPaymentTab() {
                 </span>
               )}
               <p className="font-bold text-base">{plan.label}</p>
-              <p className="text-xl font-bold text-primary mt-1">{formatCurrency(plan.price)}</p>
+              <p className="text-2xl font-bold text-primary mt-1">
+                {formatCurrency(getMonthlyPrice(plan))}
+                <span className="text-xs font-normal text-muted-foreground">/mês</span>
+              </p>
               <p className="text-xs text-muted-foreground mt-1">
-                até {plan.installments}x de {formatCurrency(plan.installmentValue)}
+                Total: {formatCurrency(plan.price)} (até {plan.installments}x)
               </p>
               <p className="text-xs text-green-600 font-medium mt-1">
-                PIX à vista: {formatCurrency(plan.pixPrice)} (5% off)
+                PIX: {formatCurrency(plan.pixPrice)} (5% off)
               </p>
             </button>
           ))}
