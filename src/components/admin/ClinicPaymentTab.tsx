@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { QrCode, Copy, Check, Loader2, ExternalLink, CreditCard, Crown } from 'lucide-react';
+import { QrCode, Copy, Check, Loader2, ExternalLink, CreditCard, Crown, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
