@@ -172,7 +172,12 @@ export default function Perfil() {
                         <Input
                           type={field.type}
                           value={form[field.key] || ''}
-                          onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                          onChange={e => {
+                            let val = e.target.value;
+                            if (field.key === 'phone') val = maskPhone(val);
+                            if (field.key === 'cpf') val = maskCPF(val);
+                            setForm(f => ({ ...f, [field.key]: val }));
+                          }}
                           className="h-9 rounded-lg"
                         />
                       ) : (

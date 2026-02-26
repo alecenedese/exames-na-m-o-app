@@ -107,7 +107,7 @@ export function ClinicProfileTab() {
             <Input
               id="cnpj"
               value={formData.cnpj}
-              onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
               className="h-12 rounded-xl bg-muted/50 border-0"
               placeholder="00.000.000/0000-00"
             />
