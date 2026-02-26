@@ -190,6 +190,7 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
           phone: profile?.phone?.replace(/\D/g, '') || '',
           value: currentPlan.pixPrice,
           description: getPlanDescription(),
+          plan: selectedPlan,
         },
       });
       if (error) throw error;
@@ -200,6 +201,7 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
       console.error(err);
       const message = err?.context?.json?.error || err?.message || 'Não foi possível gerar o PIX.';
       toast({ title: 'Erro', description: message, variant: 'destructive' });
+      setShowEditButton(true);
     } finally {
       setLoading(false);
     }
