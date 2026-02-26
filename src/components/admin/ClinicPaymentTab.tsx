@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { QrCode, Copy, Check, Loader2, ExternalLink, CreditCard, Crown, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -303,6 +303,43 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
       setCheckingStatus(false);
     }
   };
+
+  // Auto-poll payment status every 10s after PIX generation
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!paymentResult?.payment?.id || !paymentResult?.pix) return;
+    
+    const checkPayment = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('asaas-payment', {
+          body: { action: 'check-status', paymentId: paymentResult.payment.id },
+        });
+        if (error) return;
+        if (data.status === 'RECEIVED' || data.status === 'CONFIRMED') {
+          stopPolling();
+          onPaymentConfirmed?.();
+          toast({ title: '🎉 Pagamento confirmado!', description: 'Seu plano foi ativado automaticamente.' });
+        }
+      } catch {}
+    };
+
+    pollingRef.current = setInterval(checkPayment, 10000);
+    // Also check immediately after 5s
+    const initialCheck = setTimeout(checkPayment, 5000);
+
+    return () => {
+      stopPolling();
+      clearTimeout(initialCheck);
+    };
+  }, [paymentResult?.payment?.id, paymentResult?.pix, onPaymentConfirmed, stopPolling, toast]);
 
   // Payment result screen
   if (paymentResult) {
