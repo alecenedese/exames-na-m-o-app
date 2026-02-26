@@ -196,7 +196,7 @@ export function ClinicProfileTab() {
               id="whatsapp"
               type="tel"
               value={formData.whatsapp}
-              onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, whatsapp: maskPhone(e.target.value) })}
               className="h-12 rounded-xl bg-muted/50 border-0"
               required
             />
