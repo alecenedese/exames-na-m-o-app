@@ -1,14 +1,50 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
-import { LogOut, User, Mail, Phone, CreditCard, Calendar, ChevronRight, Settings, HelpCircle, Shield } from 'lucide-react';
+import { LogOut, User, Mail, Phone, CreditCard, Calendar, ChevronRight, HelpCircle, Shield, Pencil, Check, X } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Perfil() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, updateProfile } = useAuth();
   const navigate = useNavigate();
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    cpf: '',
+    rg: '',
+    date_of_birth: '',
+  });
+
+  const startEditing = () => {
+    setForm({
+      name: profile?.name || '',
+      phone: profile?.phone || '',
+      cpf: profile?.cpf || '',
+      rg: profile?.rg || '',
+      date_of_birth: profile?.date_of_birth || '',
+    });
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateProfile(form);
+      toast.success('Perfil atualizado!');
+      setEditing(false);
+    } catch {
+      toast.error('Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -20,12 +56,10 @@ export default function Perfil() {
       <>
         <MobileLayout showHeader={false}>
           <div className="min-h-screen bg-background">
-            {/* Header */}
             <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-5 pt-12 pb-8 safe-area-top">
               <h1 className="text-xl font-bold">Meu Perfil</h1>
               <p className="text-slate-300 text-sm mt-1">Gerencie sua conta</p>
             </div>
-            
             <div className="px-4 py-12 flex flex-col items-center justify-center text-center">
               <div className="w-20 h-20 rounded-2xl bg-muted flex items-center justify-center mb-4">
                 <User className="w-10 h-10 text-muted-foreground" />
@@ -34,11 +68,7 @@ export default function Perfil() {
               <p className="text-sm text-muted-foreground mt-2 max-w-xs">
                 Entre para ver seu perfil e histórico
               </p>
-              <Button 
-                onClick={() => navigate('/auth')} 
-                size="lg"
-                className="mt-6 rounded-xl font-semibold"
-              >
+              <Button onClick={() => navigate('/auth')} size="lg" className="mt-6 rounded-xl font-semibold">
                 Entrar na conta
               </Button>
             </div>
@@ -49,9 +79,11 @@ export default function Perfil() {
     );
   }
 
-  const menuItems = [
-    { icon: CreditCard, label: 'CPF', value: profile?.cpf || 'Não informado' },
-    { icon: Calendar, label: 'Data de Nascimento', value: profile?.date_of_birth || 'Não informado' },
+  const infoFields = [
+    { icon: Phone, label: 'Telefone', key: 'phone' as const, type: 'tel' },
+    { icon: CreditCard, label: 'CPF', key: 'cpf' as const, type: 'text' },
+    { icon: CreditCard, label: 'RG', key: 'rg' as const, type: 'text' },
+    { icon: Calendar, label: 'Data de Nascimento', key: 'date_of_birth' as const, type: 'date' },
   ];
 
   return (
@@ -84,11 +116,26 @@ export default function Perfil() {
               animate={{ opacity: 1, y: 0 }}
               className="bg-card rounded-2xl border shadow-sm overflow-hidden"
             >
-              <div className="p-4 border-b bg-muted/30">
+              <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
                 <h3 className="font-bold text-sm text-foreground">Informações pessoais</h3>
+                {!editing ? (
+                  <button onClick={startEditing} className="flex items-center gap-1 text-xs text-primary font-semibold">
+                    <Pencil className="w-3.5 h-3.5" /> Editar
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditing(false)} className="flex items-center gap-1 text-xs text-muted-foreground font-semibold">
+                      <X className="w-3.5 h-3.5" /> Cancelar
+                    </button>
+                    <button onClick={handleSave} disabled={saving} className="flex items-center gap-1 text-xs text-primary font-semibold">
+                      <Check className="w-3.5 h-3.5" /> {saving ? 'Salvando...' : 'Salvar'}
+                    </button>
+                  </div>
+                )}
               </div>
               
               <div className="divide-y">
+                {/* Email (read-only) */}
                 <div className="flex items-center gap-4 p-4">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                     <Mail className="w-5 h-5 text-primary" />
@@ -99,26 +146,37 @@ export default function Perfil() {
                   </div>
                 </div>
 
-                {profile?.phone && (
+                {/* Name */}
+                {editing ? (
                   <div className="flex items-center gap-4 p-4">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Phone className="w-5 h-5 text-primary" />
+                      <User className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-xs text-muted-foreground">Telefone</p>
-                      <p className="text-sm font-medium">{profile.phone}</p>
+                      <p className="text-xs text-muted-foreground mb-1">Nome</p>
+                      <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="h-9 rounded-lg" />
                     </div>
                   </div>
-                )}
+                ) : null}
 
-                {menuItems.map((item, index) => (
-                  <div key={index} className="flex items-center gap-4 p-4">
+                {/* Editable fields */}
+                {infoFields.map((field) => (
+                  <div key={field.key} className="flex items-center gap-4 p-4">
                     <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                      <item.icon className="w-5 h-5 text-muted-foreground" />
+                      <field.icon className="w-5 h-5 text-muted-foreground" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-xs text-muted-foreground">{item.label}</p>
-                      <p className="text-sm font-medium">{item.value}</p>
+                      <p className="text-xs text-muted-foreground mb-1">{field.label}</p>
+                      {editing ? (
+                        <Input
+                          type={field.type}
+                          value={form[field.key] || ''}
+                          onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                          className="h-9 rounded-lg"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium">{(profile as any)?.[field.key] || 'Não informado'}</p>
+                      )}
                     </div>
                   </div>
                 ))}
