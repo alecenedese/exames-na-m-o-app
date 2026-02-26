@@ -240,7 +240,7 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
           name: profile?.name || '',
           cpfCnpj: doc,
           email: holderInfo.email,
-          phone: holderInfo.phone?.replace(/\D/g, '') || profile.phone?.replace(/\D/g, '') || '',
+          phone: holderInfo.phone?.replace(/\D/g, '') || profile.phone?.replace(/\D/g, '') || clinicPhone || '',
           value: currentPlan.price,
           installmentCount: installmentCount > 1 ? installmentCount : undefined,
           description: getPlanDescription(),
