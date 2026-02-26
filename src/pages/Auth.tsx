@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { OpeningHoursSelector, OpeningHoursState, initialOpeningHours, formatOpeningHoursToString } from '@/components/OpeningHoursSelector';
+import { maskCNPJ, maskPhone } from '@/lib/masks';
 import { supabase } from '@/integrations/supabase/client';
 import logoHero from '@/assets/logo-hero.png';
 
