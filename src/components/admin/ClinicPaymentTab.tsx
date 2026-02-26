@@ -290,6 +290,7 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
       });
       if (error) throw error;
       if (data.status === 'RECEIVED' || data.status === 'CONFIRMED') {
+        onPaymentConfirmed?.();
         toast({ title: '🎉 Pagamento confirmado!', description: 'Seu plano foi ativado.' });
       } else if (data.status === 'PENDING') {
         toast({ title: 'Aguardando', description: 'Ainda não identificamos o pagamento.' });
