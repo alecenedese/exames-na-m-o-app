@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { LogOut, User, Mail, Phone, CreditCard, Calendar, ChevronRight, HelpCircle, Shield, Pencil, Check, X } from 'lucide-react';
+import { maskPhone, maskCPF } from '@/lib/masks';
 import { toast } from 'sonner';
 
 export default function Perfil() {
