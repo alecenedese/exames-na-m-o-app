@@ -228,7 +228,7 @@ const Admin = () => {
                           ? "text-muted-foreground/40 cursor-not-allowed"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     )}
-                    disabled={isLocked}
+                    disabled={!!isLocked}
                   >
                     {isLocked ? (
                       <Lock className="h-4 w-4" />
