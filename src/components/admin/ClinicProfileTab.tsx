@@ -186,7 +186,7 @@ export function ClinicProfileTab() {
               id="phone"
               type="tel"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, phone: maskPhone(e.target.value) })}
               className="h-12 rounded-xl bg-muted/50 border-0"
             />
           </div>
