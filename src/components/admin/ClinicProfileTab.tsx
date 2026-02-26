@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useClinicAdmin } from "@/hooks/useClinicAdmin";
 import { OpeningHoursSelector, OpeningHoursState, formatOpeningHoursToString } from "@/components/OpeningHoursSelector";
+import { maskPhone, maskCNPJ } from "@/lib/masks";
 
 export function ClinicProfileTab() {
   const { clinic, registration, loadingClinic, loadingRegistration, updateClinic, updateRegistration } = useClinicAdmin();
