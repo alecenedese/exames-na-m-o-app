@@ -1,10 +1,10 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Stethoscope, ClipboardList, MapPin, Clock, MessageCircle, ChevronRight, Shield, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { BottomNav } from "@/components/layout/BottomNav";
-import { TrialBanner } from "@/components/TrialBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useClinicStatus } from "@/hooks/useClinicStatus";
@@ -13,7 +13,15 @@ import logoHero from "@/assets/logo-hero.png";
 const Index = () => {
   const { user } = useAuth();
   const { isSuperAdmin } = useAdmin();
-  const { isClinicOwner, isTrialPeriod, daysRemaining } = useClinicStatus();
+  const { isClinicOwner, loading: clinicLoading } = useClinicStatus();
+  const navigate = useNavigate();
+
+  // Auto-redirect clinic owners to admin/payment
+  useEffect(() => {
+    if (user && !clinicLoading && (isClinicOwner || isSuperAdmin)) {
+      navigate('/admin', { replace: true });
+    }
+  }, [user, isClinicOwner, isSuperAdmin, clinicLoading, navigate]);
 
   const categories = [
     {
@@ -63,11 +71,6 @@ const Index = () => {
     <>
       <MobileLayout showHeader={false}>
         <div className="min-h-screen bg-background">
-          {/* Trial Banner for Clinic Owners */}
-          {user && isClinicOwner && isTrialPeriod && (
-            <TrialBanner daysRemaining={daysRemaining} />
-          )}
-
           {/* Hero Section - White background */}
           <div className="relative overflow-hidden bg-white">
             <motion.div
