@@ -50,7 +50,12 @@ const plans: Plan[] = [
 
 const getMonthlyPrice = (plan: Plan) => plan.price / (plan.id === 'anual' ? 12 : 6);
 
-export function ClinicPaymentTab() {
+interface ClinicPaymentTabProps {
+  onPaymentConfirmed?: () => void;
+  onEditProfile?: () => void;
+}
+
+export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPaymentTabProps) {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null);
