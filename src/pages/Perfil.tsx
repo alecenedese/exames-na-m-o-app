@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { LogOut, User, Mail, Phone, CreditCard, Calendar, ChevronRight, HelpCircle, Shield, Pencil, Check, X } from 'lucide-react';
+import { maskPhone, maskCPF } from '@/lib/masks';
 import { toast } from 'sonner';
 
 export default function Perfil() {
@@ -171,7 +172,12 @@ export default function Perfil() {
                         <Input
                           type={field.type}
                           value={form[field.key] || ''}
-                          onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                          onChange={e => {
+                            let val = e.target.value;
+                            if (field.key === 'phone') val = maskPhone(val);
+                            if (field.key === 'cpf') val = maskCPF(val);
+                            setForm(f => ({ ...f, [field.key]: val }));
+                          }}
                           className="h-9 rounded-lg"
                         />
                       ) : (

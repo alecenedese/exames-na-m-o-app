@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useClinicAdmin } from "@/hooks/useClinicAdmin";
 import { OpeningHoursSelector, OpeningHoursState, formatOpeningHoursToString } from "@/components/OpeningHoursSelector";
+import { maskPhone, maskCNPJ } from "@/lib/masks";
 
 export function ClinicProfileTab() {
   const { clinic, registration, loadingClinic, loadingRegistration, updateClinic, updateRegistration } = useClinicAdmin();
@@ -106,7 +107,7 @@ export function ClinicProfileTab() {
             <Input
               id="cnpj"
               value={formData.cnpj}
-              onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
               className="h-12 rounded-xl bg-muted/50 border-0"
               placeholder="00.000.000/0000-00"
             />
@@ -185,7 +186,7 @@ export function ClinicProfileTab() {
               id="phone"
               type="tel"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, phone: maskPhone(e.target.value) })}
               className="h-12 rounded-xl bg-muted/50 border-0"
             />
           </div>
@@ -195,7 +196,7 @@ export function ClinicProfileTab() {
               id="whatsapp"
               type="tel"
               value={formData.whatsapp}
-              onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, whatsapp: maskPhone(e.target.value) })}
               className="h-12 rounded-xl bg-muted/50 border-0"
               required
             />
