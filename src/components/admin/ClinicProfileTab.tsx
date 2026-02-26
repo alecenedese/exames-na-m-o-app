@@ -16,7 +16,7 @@ import { useClinicAdmin } from "@/hooks/useClinicAdmin";
 import { OpeningHoursSelector, OpeningHoursState, formatOpeningHoursToString } from "@/components/OpeningHoursSelector";
 
 export function ClinicProfileTab() {
-  const { clinic, registration, loadingClinic, loadingRegistration, updateClinic } = useClinicAdmin();
+  const { clinic, registration, loadingClinic, loadingRegistration, updateClinic, updateRegistration } = useClinicAdmin();
   
   const [formData, setFormData] = useState({
     name: "",
@@ -25,6 +25,7 @@ export function ClinicProfileTab() {
     state: "",
     phone: "",
     whatsapp: "",
+    cnpj: "",
   });
 
   const [openingHours, setOpeningHours] = useState<OpeningHoursState>({
@@ -42,19 +43,27 @@ export function ClinicProfileTab() {
         state: clinic.state || "",
         phone: clinic.phone || "",
         whatsapp: clinic.whatsapp || "",
+        cnpj: registration?.cnpj || "",
       });
     }
-  }, [clinic]);
+  }, [clinic, registration]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     const openingHoursString = formatOpeningHoursToString(openingHours);
     
+    const { cnpj, ...clinicData } = formData;
+    
     updateClinic.mutate({
-      ...formData,
+      ...clinicData,
       opening_hours: openingHoursString || clinic?.opening_hours,
     });
+
+    // Save CNPJ to registration if changed
+    if (registration && cnpj !== registration.cnpj) {
+      updateRegistration.mutate({ cnpj });
+    }
   };
 
   if (loadingClinic || loadingRegistration) {
@@ -92,15 +101,16 @@ export function ClinicProfileTab() {
             />
           </div>
 
-          {registration?.cnpj && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">CNPJ</Label>
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
-                <FileText className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm font-medium">{registration.cnpj}</span>
-              </div>
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label htmlFor="cnpj" className="text-sm font-medium">CNPJ</Label>
+            <Input
+              id="cnpj"
+              value={formData.cnpj}
+              onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+              className="h-12 rounded-xl bg-muted/50 border-0"
+              placeholder="00.000.000/0000-00"
+            />
+          </div>
         </div>
       </motion.div>
 
