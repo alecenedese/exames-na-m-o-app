@@ -181,6 +181,7 @@ export function ClinicPaymentTab() {
           action: 'create-pix',
           name: profile?.name || '',
           cpfCnpj: doc,
+          email: user?.email || '',
           phone: profile?.phone?.replace(/\D/g, '') || '',
           value: currentPlan.pixPrice,
           description: getPlanDescription(),

@@ -74,9 +74,8 @@ Deno.serve(async (req) => {
       return parseInt(cnpj[13]) === d2;
     }
 
-    // Helper: find or create customer
+    // Helper: find or create customer, updating email/phone if missing
     async function getOrCreateCustomer(name: string, cpfCnpj: string, email?: string, phone?: string) {
-      // Validate CPF/CNPJ before sending to Asaas
       const cleaned = cpfCnpj.replace(/\D/g, '');
       if (cleaned.length === 11 && !isValidCPF(cleaned)) {
         throw new Error('CPF informado é inválido. Verifique os dados e tente novamente.');
@@ -92,7 +91,19 @@ Deno.serve(async (req) => {
       const searchData = await searchRes.json();
 
       if (searchData.data && searchData.data.length > 0) {
-        return searchData.data[0].id;
+        const existing = searchData.data[0];
+        // Update customer if email or phone is missing
+        const updates: Record<string, string> = {};
+        if (!existing.email && email) updates.email = email;
+        if (!existing.mobilePhone && phone) updates.mobilePhone = phone;
+        if (Object.keys(updates).length > 0) {
+          await fetch(`${ASAAS_BASE_URL}/customers/${existing.id}`, {
+            method: 'PUT',
+            headers: asaasHeaders,
+            body: JSON.stringify(updates),
+          });
+        }
+        return existing.id;
       }
 
       const customerRes = await fetch(`${ASAAS_BASE_URL}/customers`, {
@@ -110,8 +121,8 @@ Deno.serve(async (req) => {
 
     // === PIX PAYMENT ===
     if (action === 'create-pix') {
-      const { name, cpfCnpj, phone, value, description: desc } = body;
-      const customerId = await getOrCreateCustomer(name, cpfCnpj, undefined, phone);
+      const { name, cpfCnpj, email, phone, value, description: desc } = body;
+      const customerId = await getOrCreateCustomer(name, cpfCnpj, email, phone);
 
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 1);
