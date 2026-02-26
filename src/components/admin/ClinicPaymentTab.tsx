@@ -64,6 +64,7 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
   const [selectedPlan, setSelectedPlan] = useState<'anual' | 'semestral'>('anual');
   const { toast } = useToast();
   const { profile, user } = useAuth();
+  const [showEditButton, setShowEditButton] = useState(false);
   const [clinicCnpj, setClinicCnpj] = useState<string | null>(null);
 
   // Fetch clinic CNPJ from registration
