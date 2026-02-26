@@ -34,12 +34,12 @@ const Admin = () => {
   const { isSuperAdmin, checkingAdmin } = useAdmin();
   const { isClinicOwner, loading: clinicLoading } = useClinicStatus();
   
-  const defaultTab = isSuperAdmin ? "clinics" : "payment";
+  const defaultTab = isSuperAdmin ? "clinics" : "profile";
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   useEffect(() => {
     if (!checkingAdmin && !clinicLoading) {
-      setActiveTab(isSuperAdmin ? "clinics" : "payment");
+      setActiveTab(isSuperAdmin ? "clinics" : "profile");
     }
   }, [isSuperAdmin, checkingAdmin, clinicLoading]);
 
@@ -91,10 +91,10 @@ const Admin = () => {
 
   // Tabs for clinic owners
   const clinicTabs = [
-    { id: "payment", label: "Pagamento", icon: CreditCard },
     { id: "profile", label: "Clínica", icon: Settings },
     { id: "prices", label: "Preços", icon: DollarSign },
     { id: "appointments", label: "Agenda", icon: Calendar },
+    { id: "payment", label: "Pagamento", icon: CreditCard },
   ];
 
   const tabs = isSuperAdmin ? superAdminTabs : clinicTabs;
