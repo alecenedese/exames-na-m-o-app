@@ -239,6 +239,7 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
           value: currentPlan.price,
           installmentCount: installmentCount > 1 ? installmentCount : undefined,
           description: getPlanDescription(),
+          plan: selectedPlan,
           creditCard: {
             holderName: cardData.holderName,
             number: cardData.number.replace(/\s/g, ''),
@@ -259,11 +260,13 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
       if (error) throw error;
       if (!data.success) throw new Error(data.error);
       setPaymentResult(data);
+      onPaymentConfirmed?.();
       toast({ title: '🎉 Pagamento aprovado!', description: 'Seu plano foi ativado com sucesso.' });
     } catch (err: any) {
       console.error(err);
       const msg = err?.message || 'Não foi possível processar o cartão.';
       toast({ title: 'Erro no pagamento', description: msg, variant: 'destructive' });
+      setShowEditButton(true);
     } finally {
       setLoading(false);
     }
