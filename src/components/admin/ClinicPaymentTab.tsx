@@ -192,7 +192,7 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
           name: profile?.name || '',
           cpfCnpj: doc,
           email: user?.email || '',
-          phone: profile?.phone?.replace(/\D/g, '') || '',
+          phone: profile?.phone?.replace(/\D/g, '') || clinicPhone || '',
           value: currentPlan.pixPrice,
           description: getPlanDescription(),
           plan: selectedPlan,
