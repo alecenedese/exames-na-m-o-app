@@ -99,6 +99,8 @@ Deno.serve(async (req) => {
       if (searchData.data && searchData.data.length > 0) {
         const existing = searchData.data[0];
         const updates: Record<string, string> = {};
+        // Always update name to match current user
+        if (existing.name !== name) updates.name = name;
         if (!existing.email && email) updates.email = email;
         if (!existing.mobilePhone && phone) updates.mobilePhone = phone;
         if (Object.keys(updates).length > 0) {
