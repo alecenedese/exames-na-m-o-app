@@ -66,21 +66,25 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
   const { profile, user } = useAuth();
   const [showEditButton, setShowEditButton] = useState(false);
   const [clinicCnpj, setClinicCnpj] = useState<string | null>(null);
+  const [clinicPhone, setClinicPhone] = useState<string | null>(null);
 
-  // Fetch clinic CNPJ from registration
+  // Fetch clinic CNPJ and phone from registration
   useEffect(() => {
-    async function fetchCnpj() {
+    async function fetchClinicData() {
       if (!user) return;
       const { data } = await supabase
         .from('clinic_registrations')
-        .select('cnpj')
+        .select('cnpj, phone, whatsapp')
         .eq('user_id', user.id)
         .maybeSingle();
       if (data?.cnpj) {
         setClinicCnpj(data.cnpj.replace(/\D/g, ''));
       }
+      if (data?.phone || data?.whatsapp) {
+        setClinicPhone((data.phone || data.whatsapp).replace(/\D/g, ''));
+      }
     }
-    fetchCnpj();
+    fetchClinicData();
   }, [user]);
 
   const isValidCPF = (cpf: string) => {
@@ -188,7 +192,7 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
           name: profile?.name || '',
           cpfCnpj: doc,
           email: user?.email || '',
-          phone: profile?.phone?.replace(/\D/g, '') || '',
+          phone: profile?.phone?.replace(/\D/g, '') || clinicPhone || '',
           value: currentPlan.pixPrice,
           description: getPlanDescription(),
           plan: selectedPlan,
@@ -236,7 +240,7 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
           name: profile?.name || '',
           cpfCnpj: doc,
           email: holderInfo.email,
-          phone: holderInfo.phone?.replace(/\D/g, '') || profile.phone?.replace(/\D/g, '') || '',
+          phone: holderInfo.phone?.replace(/\D/g, '') || profile.phone?.replace(/\D/g, '') || clinicPhone || '',
           value: currentPlan.price,
           installmentCount: installmentCount > 1 ? installmentCount : undefined,
           description: getPlanDescription(),
@@ -254,7 +258,7 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
             cpfCnpj: holderInfo.cpfCnpj?.replace(/\D/g, '') || profile.cpf.replace(/\D/g, ''),
             postalCode: cep,
             addressNumber: holderInfo.addressNumber,
-            phone: holderInfo.phone?.replace(/\D/g, '') || profile.phone?.replace(/\D/g, '') || '',
+            phone: holderInfo.phone?.replace(/\D/g, '') || profile.phone?.replace(/\D/g, '') || clinicPhone || '',
           },
         },
       });
