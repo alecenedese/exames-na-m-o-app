@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { OpeningHoursSelector, OpeningHoursState, initialOpeningHours, formatOpeningHoursToString } from '@/components/OpeningHoursSelector';
+import { supabase } from '@/integrations/supabase/client';
 import logoHero from '@/assets/logo-hero.png';
 
 type AccountType = 'user' | 'clinic';
@@ -56,7 +57,7 @@ export default function Auth() {
     setLoading(true);
 
     const pendingOrder = localStorage.getItem('pending_order');
-    const redirectTo = pendingOrder ? '/exames' : '/';
+    const redirectTo = pendingOrder ? '/exames' : (accountType === 'clinic' ? '/admin' : '/');
 
     try {
       if (isLogin) {
@@ -70,7 +71,18 @@ export default function Auth() {
             variant: 'destructive',
           });
         } else {
-          navigate(redirectTo);
+          // Check if user is clinic owner to redirect to admin
+          const { data: registration } = await supabase
+            .from('clinic_registrations')
+            .select('id')
+            .limit(1)
+            .maybeSingle();
+          
+          if (registration) {
+            navigate('/admin', { replace: true });
+          } else {
+            navigate(redirectTo);
+          }
         }
       } else {
         if (accountType === 'user') {
