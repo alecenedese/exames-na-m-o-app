@@ -187,6 +187,13 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
     v.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ').slice(0, 19);
 
   const formatCurrency = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
+  const formatDateTime = (value: string | null) => (value ? new Date(value).toLocaleString('pt-BR') : '—');
+  const getPlanLabel = (plan: string) => (plan === 'anual' ? 'Anual' : plan === 'semestral' ? 'Semestral' : plan);
+  const getStatusLabel = (status: string) => {
+    if (status === 'confirmed') return 'Confirmado';
+    if (status === 'pending') return 'Pendente';
+    return status;
+  };
 
   const handleCepBlur = async () => {
     const cep = holderInfo.postalCode.replace(/\D/g, '');
