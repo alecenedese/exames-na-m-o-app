@@ -15,6 +15,17 @@ interface PaymentResult {
   pix?: { qrCodeImage: string; qrCodePayload: string; expirationDate: string } | null;
 }
 
+interface SubscriptionHistoryItem {
+  id: string;
+  plan: string;
+  amount: number;
+  payment_method: string | null;
+  payment_status: string;
+  paid_at: string | null;
+  created_at: string;
+  expires_at: string | null;
+}
+
 interface Plan {
   id: 'anual' | 'semestral';
   label: string;
@@ -48,7 +59,7 @@ const plans: Plan[] = [
   },
 ];
 
-const getMonthlyPrice = (plan: Plan) => plan.price / (plan.id === 'anual' ? 12 : 6);
+const getMonthlyPrice = (plan: Plan) => plan.installmentValue;
 
 interface ClinicPaymentTabProps {
   onPaymentConfirmed?: () => void;
@@ -62,6 +73,8 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card'>('pix');
   const [selectedPlan, setSelectedPlan] = useState<'anual' | 'semestral'>('anual');
+  const [paymentHistory, setPaymentHistory] = useState<SubscriptionHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const { toast } = useToast();
   const { profile, user } = useAuth();
   const [showEditButton, setShowEditButton] = useState(false);
@@ -86,6 +99,33 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
     }
     fetchClinicData();
   }, [user]);
+
+  useEffect(() => {
+    async function fetchPaymentHistory() {
+      if (!user) {
+        setPaymentHistory([]);
+        return;
+      }
+
+      setLoadingHistory(true);
+      try {
+        const { data, error } = await supabase
+          .from('clinic_subscriptions')
+          .select('id, plan, amount, payment_method, payment_status, paid_at, created_at, expires_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setPaymentHistory(data ?? []);
+      } catch (error) {
+        console.error('Error fetching payment history:', error);
+      } finally {
+        setLoadingHistory(false);
+      }
+    }
+
+    fetchPaymentHistory();
+  }, [user, paymentResult]);
 
   const isValidCPF = (cpf: string) => {
     if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
@@ -147,6 +187,13 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
     v.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ').slice(0, 19);
 
   const formatCurrency = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
+  const formatDateTime = (value: string | null) => (value ? new Date(value).toLocaleString('pt-BR') : '—');
+  const getPlanLabel = (plan: string) => (plan === 'anual' ? 'Anual' : plan === 'semestral' ? 'Semestral' : plan);
+  const getStatusLabel = (status: string) => {
+    if (status === 'confirmed') return 'Confirmado';
+    if (status === 'pending') return 'Pendente';
+    return status;
+  };
 
   const handleCepBlur = async () => {
     const cep = holderInfo.postalCode.replace(/\D/g, '');
@@ -655,6 +702,38 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Histórico de pagamentos</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadingHistory ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Carregando histórico...
+            </div>
+          ) : paymentHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum pagamento encontrado.</p>
+          ) : (
+            paymentHistory.map((item) => (
+              <div key={item.id} className="rounded-lg border p-3 space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-sm">Plano {getPlanLabel(item.plan)}</p>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                    {getStatusLabel(item.payment_status)}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Valor: {formatCurrency(Number(item.amount || 0))} • Método: {(item.payment_method || 'não informado').toUpperCase()}
+                </p>
+                <p className="text-xs text-muted-foreground">Pago em: {formatDateTime(item.paid_at || item.created_at)}</p>
+                <p className="text-xs text-muted-foreground">Expira em: {formatDateTime(item.expires_at)}</p>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       {showEditButton && onEditProfile && (
         <Button variant="outline" className="w-full" onClick={onEditProfile}>
