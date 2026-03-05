@@ -321,16 +321,86 @@ export function useAdmin() {
   // Delete clinic
   const deleteClinic = useMutation({
     mutationFn: async (id: string) => {
+      // Get the clinic's admin user info before deleting
+      const { data: clinic } = await supabase
+        .from('clinics')
+        .select('admin_user_id')
+        .eq('id', id)
+        .single();
+
+      // Get the auth user_id from the profile
+      let authUserId: string | null = null;
+      if (clinic?.admin_user_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('id', clinic.admin_user_id)
+          .single();
+        authUserId = profile?.user_id || null;
+      }
+
+      // Delete related clinic_exam_prices
+      await supabase
+        .from('clinic_exam_prices')
+        .delete()
+        .eq('clinic_id', id);
+
+      // Delete related appointments and their exams
+      const { data: clinicAppointments } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('clinic_id', id);
+      
+      if (clinicAppointments && clinicAppointments.length > 0) {
+        const appointmentIds = clinicAppointments.map(a => a.id);
+        await supabase
+          .from('appointment_exams')
+          .delete()
+          .in('appointment_id', appointmentIds);
+        await supabase
+          .from('appointments')
+          .delete()
+          .eq('clinic_id', id);
+      }
+
+      // Delete clinic subscriptions
+      await supabase
+        .from('clinic_subscriptions')
+        .delete()
+        .eq('clinic_id', id);
+
+      // Delete the clinic
       const { error } = await supabase
         .from('clinics')
         .delete()
         .eq('id', id);
-
       if (error) throw error;
+
+      // Clean up user data so they can re-register
+      if (authUserId) {
+        // Delete clinic registrations for this user
+        await supabase
+          .from('clinic_registrations')
+          .delete()
+          .eq('user_id', authUserId);
+
+        // Reset user role back to 'user'
+        await supabase
+          .from('user_roles')
+          .update({ role: 'user' })
+          .eq('user_id', authUserId);
+
+        // Reset profile role
+        await supabase
+          .from('profiles')
+          .update({ role: 'user' })
+          .eq('user_id', authUserId);
+      }
     },
     onSuccess: () => {
       toast.success('Clínica removida com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['admin-clinics'] });
+      queryClient.invalidateQueries({ queryKey: ['clinic-registrations'] });
     },
     onError: (error) => {
       toast.error('Erro ao remover clínica: ' + error.message);
