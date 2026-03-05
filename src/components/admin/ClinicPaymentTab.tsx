@@ -100,6 +100,33 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
     fetchClinicData();
   }, [user]);
 
+  useEffect(() => {
+    async function fetchPaymentHistory() {
+      if (!user) {
+        setPaymentHistory([]);
+        return;
+      }
+
+      setLoadingHistory(true);
+      try {
+        const { data, error } = await supabase
+          .from('clinic_subscriptions')
+          .select('id, plan, amount, payment_method, payment_status, paid_at, created_at, expires_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setPaymentHistory(data ?? []);
+      } catch (error) {
+        console.error('Error fetching payment history:', error);
+      } finally {
+        setLoadingHistory(false);
+      }
+    }
+
+    fetchPaymentHistory();
+  }, [user, paymentResult]);
+
   const isValidCPF = (cpf: string) => {
     if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
     let sum = 0;
