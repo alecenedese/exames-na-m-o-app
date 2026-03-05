@@ -15,6 +15,17 @@ interface PaymentResult {
   pix?: { qrCodeImage: string; qrCodePayload: string; expirationDate: string } | null;
 }
 
+interface SubscriptionHistoryItem {
+  id: string;
+  plan: string;
+  amount: number;
+  payment_method: string | null;
+  payment_status: string;
+  paid_at: string | null;
+  created_at: string;
+  expires_at: string | null;
+}
+
 interface Plan {
   id: 'anual' | 'semestral';
   label: string;
@@ -48,7 +59,7 @@ const plans: Plan[] = [
   },
 ];
 
-const getMonthlyPrice = (plan: Plan) => plan.price / (plan.id === 'anual' ? 12 : 6);
+const getMonthlyPrice = (plan: Plan) => plan.installmentValue;
 
 interface ClinicPaymentTabProps {
   onPaymentConfirmed?: () => void;
@@ -62,6 +73,8 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card'>('pix');
   const [selectedPlan, setSelectedPlan] = useState<'anual' | 'semestral'>('anual');
+  const [paymentHistory, setPaymentHistory] = useState<SubscriptionHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const { toast } = useToast();
   const { profile, user } = useAuth();
   const [showEditButton, setShowEditButton] = useState(false);
