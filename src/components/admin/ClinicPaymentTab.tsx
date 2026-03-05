@@ -703,6 +703,38 @@ export function ClinicPaymentTab({ onPaymentConfirmed, onEditProfile }: ClinicPa
         </TabsContent>
       </Tabs>
 
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Histórico de pagamentos</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadingHistory ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Carregando histórico...
+            </div>
+          ) : paymentHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum pagamento encontrado.</p>
+          ) : (
+            paymentHistory.map((item) => (
+              <div key={item.id} className="rounded-lg border p-3 space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-sm">Plano {getPlanLabel(item.plan)}</p>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                    {getStatusLabel(item.payment_status)}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Valor: {formatCurrency(Number(item.amount || 0))} • Método: {(item.payment_method || 'não informado').toUpperCase()}
+                </p>
+                <p className="text-xs text-muted-foreground">Pago em: {formatDateTime(item.paid_at || item.created_at)}</p>
+                <p className="text-xs text-muted-foreground">Expira em: {formatDateTime(item.expires_at)}</p>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
       {showEditButton && onEditProfile && (
         <Button variant="outline" className="w-full" onClick={onEditProfile}>
           <Settings className="w-4 h-4 mr-2" />
