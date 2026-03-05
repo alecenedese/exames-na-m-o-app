@@ -33,7 +33,7 @@ const plans: Plan[] = [
     price: 479.00,
     pixPrice: 455.05,
     installments: 12,
-    installmentValue: Math.ceil((479.00 / 12) * 100) / 100,
+    installmentValue: 39.90,
     description: 'Melhor custo-benefício',
     badge: 'Mais popular',
   },
