@@ -123,7 +123,7 @@ export default function Auth() {
             toast({
               title: 'Erro ao cadastrar',
               description: error.message.includes('already registered')
-                ? 'Este e-mail já está cadastrado'
+                ? 'Este e-mail já está cadastrado. Faça login com sua conta existente para registrar uma nova clínica.'
                 : error.message,
               variant: 'destructive',
             });
