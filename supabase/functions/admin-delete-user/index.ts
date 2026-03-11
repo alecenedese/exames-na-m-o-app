@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -11,12 +11,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    // Verify the caller is a super_admin
-    const authHeader = req.headers.get("Authorization")!;
+    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
+      throw new Error("Missing required environment variables");
+    }
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -29,22 +39,37 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if caller is super_admin
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-    const { data: roleData } = await supabaseAdmin
-      .from("profiles")
-      .select("role")
-      .eq("user_id", callerUser.id)
-      .single();
 
-    if (!roleData || roleData.role !== "super_admin") {
+    const { data: adminRole, error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", callerUser.id)
+      .eq("role", "super_admin")
+      .maybeSingle();
+
+    if (roleError) {
+      throw new Error(`Failed to validate role: ${roleError.message}`);
+    }
+
+    if (!adminRole) {
       return new Response(JSON.stringify({ error: "Forbidden: super_admin required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { userId } = await req.json();
+    let userId: string | undefined;
+    try {
+      const body = await req.json();
+      userId = body?.userId;
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!userId) {
       return new Response(JSON.stringify({ error: "userId is required" }), {
         status: 400,
@@ -52,11 +77,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Delete profile first (to avoid FK issues)
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
-    await supabaseAdmin.from("profiles").delete().eq("user_id", userId);
+    const [rolesDelete, profileDelete, registrationsDelete] = await Promise.all([
+      supabaseAdmin.from("user_roles").delete().eq("user_id", userId),
+      supabaseAdmin.from("profiles").delete().eq("user_id", userId),
+      supabaseAdmin.from("clinic_registrations").delete().eq("user_id", userId),
+    ]);
 
-    // Delete the auth user
+    if (rolesDelete.error) throw new Error(`Failed to delete user roles: ${rolesDelete.error.message}`);
+    if (profileDelete.error) throw new Error(`Failed to delete profile: ${profileDelete.error.message}`);
+    if (registrationsDelete.error) throw new Error(`Failed to delete clinic registrations: ${registrationsDelete.error.message}`);
+
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
     if (deleteError) {
       throw new Error(`Failed to delete auth user: ${deleteError.message}`);
@@ -66,8 +96,10 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Error deleting user:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error deleting user:", message);
+
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

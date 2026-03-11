@@ -67,6 +67,13 @@ export interface Clinic {
   admin_user_id: string | null;
 }
 
+export interface OrphanClinicAccount {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+}
+
 export function useAdmin() {
   const queryClient = useQueryClient();
 
@@ -104,6 +111,30 @@ export function useAdmin() {
         .order('name');
       if (error) throw error;
       return data as Clinic[];
+    },
+    enabled: isSuperAdmin === true,
+  });
+
+  // Accounts marked as clinic_admin but no longer linked to any clinic
+  const { data: orphanClinicAccounts, isLoading: loadingOrphanClinicAccounts } = useQuery({
+    queryKey: ['orphan-clinic-accounts'],
+    queryFn: async () => {
+      const [{ data: clinicAdmins, error: profilesError }, { data: clinicsData, error: clinicsError }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, user_id, name, created_at')
+          .eq('role', 'clinic_admin'),
+        supabase
+          .from('clinics')
+          .select('admin_user_id'),
+      ]);
+
+      if (profilesError) throw profilesError;
+      if (clinicsError) throw clinicsError;
+
+      const linkedAdminProfileIds = new Set((clinicsData || []).map((clinic) => clinic.admin_user_id).filter(Boolean));
+
+      return (clinicAdmins || []).filter((admin) => !linkedAdminProfileIds.has(admin.id)) as OrphanClinicAccount[];
     },
     enabled: isSuperAdmin === true,
   });
@@ -321,86 +352,105 @@ export function useAdmin() {
   // Delete clinic
   const deleteClinic = useMutation({
     mutationFn: async (id: string) => {
-      // Get the clinic's admin user info before deleting
-      const { data: clinic } = await supabase
+      // Get clinic and resolve auth user BEFORE deleting anything
+      const { data: clinic, error: clinicError } = await supabase
         .from('clinics')
-        .select('admin_user_id')
+        .select('id, admin_user_id')
         .eq('id', id)
         .single();
 
-      // Get the auth user_id from the profile
+      if (clinicError) throw clinicError;
+
       let authUserId: string | null = null;
+
       if (clinic?.admin_user_id) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('user_id')
           .eq('id', clinic.admin_user_id)
-          .single();
+          .maybeSingle();
+
+        if (profileError) throw profileError;
         authUserId = profile?.user_id || null;
       }
 
+      // Fallback for legacy clinics that may not have admin_user_id linked
+      if (!authUserId) {
+        const { data: latestSubscription, error: subscriptionError } = await supabase
+          .from('clinic_subscriptions')
+          .select('user_id')
+          .eq('clinic_id', id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (subscriptionError) throw subscriptionError;
+        authUserId = latestSubscription?.user_id || null;
+      }
+
+      if (!authUserId) {
+        throw new Error('Não foi possível identificar a conta da clínica para exclusão completa.');
+      }
+
       // Delete related clinic_exam_prices
-      await supabase
+      const { error: pricesError } = await supabase
         .from('clinic_exam_prices')
         .delete()
         .eq('clinic_id', id);
+      if (pricesError) throw pricesError;
 
       // Delete related appointments and their exams
-      const { data: clinicAppointments } = await supabase
+      const { data: clinicAppointments, error: appointmentsQueryError } = await supabase
         .from('appointments')
         .select('id')
         .eq('clinic_id', id);
-      
+
+      if (appointmentsQueryError) throw appointmentsQueryError;
+
       if (clinicAppointments && clinicAppointments.length > 0) {
         const appointmentIds = clinicAppointments.map(a => a.id);
-        await supabase
+
+        const { error: examsError } = await supabase
           .from('appointment_exams')
           .delete()
           .in('appointment_id', appointmentIds);
-        await supabase
+        if (examsError) throw examsError;
+
+        const { error: appointmentsDeleteError } = await supabase
           .from('appointments')
           .delete()
           .eq('clinic_id', id);
+        if (appointmentsDeleteError) throw appointmentsDeleteError;
       }
 
       // Delete clinic subscriptions
-      await supabase
+      const { error: subscriptionsError } = await supabase
         .from('clinic_subscriptions')
         .delete()
         .eq('clinic_id', id);
+      if (subscriptionsError) throw subscriptionsError;
+
+      // Delete clinic registrations for this user
+      const { error: registrationsError } = await supabase
+        .from('clinic_registrations')
+        .delete()
+        .eq('user_id', authUserId);
+      if (registrationsError) throw registrationsError;
 
       // Delete the clinic
-      const { error } = await supabase
+      const { error: clinicDeleteError } = await supabase
         .from('clinics')
         .delete()
         .eq('id', id);
-      if (error) throw error;
+      if (clinicDeleteError) throw clinicDeleteError;
 
-      // Clean up user data and delete auth user so they can re-register
-      if (authUserId) {
-        // Delete clinic registrations for this user
-        await supabase
-          .from('clinic_registrations')
-          .delete()
-          .eq('user_id', authUserId);
+      // Delete auth user via edge function (also cleans up profile and roles)
+      const { error: deleteUserError } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId: authUserId },
+      });
 
-        // Delete auth user via edge function (also cleans up profile and roles)
-        try {
-          await supabase.functions.invoke('admin-delete-user', {
-            body: { userId: authUserId },
-          });
-        } catch (e) {
-          console.error('Failed to delete auth user:', e);
-          // Fallback: at least reset roles
-          await supabase
-            .from('user_roles')
-            .update({ role: 'user' })
-            .eq('user_id', authUserId);
-          await supabase
-            .from('profiles')
-            .update({ role: 'user' })
-            .eq('user_id', authUserId);
-        }
+      if (deleteUserError) {
+        throw new Error(`Conta de autenticação não foi removida: ${deleteUserError.message}`);
       }
     },
     onSuccess: () => {
@@ -410,6 +460,36 @@ export function useAdmin() {
     },
     onError: (error) => {
       toast.error('Erro ao remover clínica: ' + error.message);
+    },
+  });
+
+  // Cleanup orphan clinic admin accounts (legacy records without clinic)
+  const cleanupOrphanClinicAccounts = useMutation({
+    mutationFn: async (userIds: string[]) => {
+      if (!userIds.length) return;
+
+      const results = await Promise.all(
+        userIds.map(async (userId) => {
+          const { error } = await supabase.functions.invoke('admin-delete-user', {
+            body: { userId },
+          });
+
+          if (error) {
+            throw new Error(`Falha ao remover conta órfã (${userId}): ${error.message}`);
+          }
+        })
+      );
+
+      return results;
+    },
+    onSuccess: () => {
+      toast.success('Contas órfãs removidas com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['orphan-clinic-accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-clinics'] });
+      queryClient.invalidateQueries({ queryKey: ['clinic-registrations'] });
+    },
+    onError: (error) => {
+      toast.error('Erro ao limpar contas órfãs: ' + error.message);
     },
   });
 
@@ -483,6 +563,8 @@ export function useAdmin() {
     loadingPending,
     clinics,
     loadingClinics,
+    orphanClinicAccounts,
+    loadingOrphanClinicAccounts,
     examTypes,
     loadingExamTypes,
     clinicPrices,
@@ -492,6 +574,7 @@ export function useAdmin() {
     approveClinic,
     rejectClinic,
     deleteClinic,
+    cleanupOrphanClinicAccounts,
     deleteAppointment,
     createExamType,
     updateExamType,
