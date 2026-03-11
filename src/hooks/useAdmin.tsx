@@ -115,6 +115,30 @@ export function useAdmin() {
     enabled: isSuperAdmin === true,
   });
 
+  // Accounts marked as clinic_admin but no longer linked to any clinic
+  const { data: orphanClinicAccounts, isLoading: loadingOrphanClinicAccounts } = useQuery({
+    queryKey: ['orphan-clinic-accounts'],
+    queryFn: async () => {
+      const [{ data: clinicAdmins, error: profilesError }, { data: clinicsData, error: clinicsError }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, user_id, name, created_at')
+          .eq('role', 'clinic_admin'),
+        supabase
+          .from('clinics')
+          .select('admin_user_id'),
+      ]);
+
+      if (profilesError) throw profilesError;
+      if (clinicsError) throw clinicsError;
+
+      const linkedAdminProfileIds = new Set((clinicsData || []).map((clinic) => clinic.admin_user_id).filter(Boolean));
+
+      return (clinicAdmins || []).filter((admin) => !linkedAdminProfileIds.has(admin.id)) as OrphanClinicAccount[];
+    },
+    enabled: isSuperAdmin === true,
+  });
+
   // Fetch exam types
   const { data: examTypes, isLoading: loadingExamTypes } = useQuery({
     queryKey: ['exam-types'],
