@@ -1,5 +1,5 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { Link } from "react-router-dom";
+
 import { motion } from "framer-motion";
 import { Stethoscope, ClipboardList, MapPin, Clock, MessageCircle, ChevronRight, Shield, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,14 +14,6 @@ const Index = () => {
   const { user } = useAuth();
   const { isSuperAdmin, checkingAdmin } = useAdmin();
   const { isClinicOwner, loading: clinicLoading } = useClinicStatus();
-  const navigate = useNavigate();
-
-  // Auto-redirect clinic owners to admin/payment
-  useEffect(() => {
-    if (user && !clinicLoading && !checkingAdmin && (isClinicOwner || isSuperAdmin)) {
-      navigate('/admin', { replace: true });
-    }
-  }, [user, isClinicOwner, isSuperAdmin, clinicLoading, checkingAdmin, navigate]);
 
   const categories = [
     {
