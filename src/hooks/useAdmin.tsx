@@ -67,6 +67,13 @@ export interface Clinic {
   admin_user_id: string | null;
 }
 
+export interface OrphanClinicAccount {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+}
+
 export function useAdmin() {
   const queryClient = useQueryClient();
 
