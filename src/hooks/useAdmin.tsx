@@ -463,6 +463,36 @@ export function useAdmin() {
     },
   });
 
+  // Cleanup orphan clinic admin accounts (legacy records without clinic)
+  const cleanupOrphanClinicAccounts = useMutation({
+    mutationFn: async (userIds: string[]) => {
+      if (!userIds.length) return;
+
+      const results = await Promise.all(
+        userIds.map(async (userId) => {
+          const { error } = await supabase.functions.invoke('admin-delete-user', {
+            body: { userId },
+          });
+
+          if (error) {
+            throw new Error(`Falha ao remover conta órfã (${userId}): ${error.message}`);
+          }
+        })
+      );
+
+      return results;
+    },
+    onSuccess: () => {
+      toast.success('Contas órfãs removidas com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['orphan-clinic-accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-clinics'] });
+      queryClient.invalidateQueries({ queryKey: ['clinic-registrations'] });
+    },
+    onError: (error) => {
+      toast.error('Erro ao limpar contas órfãs: ' + error.message);
+    },
+  });
+
   // Delete appointment
   const deleteAppointment = useMutation({
     mutationFn: async (id: string) => {
