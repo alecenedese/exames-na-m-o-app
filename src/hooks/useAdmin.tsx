@@ -376,7 +376,7 @@ export function useAdmin() {
         .eq('id', id);
       if (error) throw error;
 
-      // Clean up user data so they can re-register
+      // Clean up user data and delete auth user so they can re-register
       if (authUserId) {
         // Delete clinic registrations for this user
         await supabase
@@ -384,17 +384,23 @@ export function useAdmin() {
           .delete()
           .eq('user_id', authUserId);
 
-        // Reset user role back to 'user'
-        await supabase
-          .from('user_roles')
-          .update({ role: 'user' })
-          .eq('user_id', authUserId);
-
-        // Reset profile role
-        await supabase
-          .from('profiles')
-          .update({ role: 'user' })
-          .eq('user_id', authUserId);
+        // Delete auth user via edge function (also cleans up profile and roles)
+        try {
+          await supabase.functions.invoke('admin-delete-user', {
+            body: { userId: authUserId },
+          });
+        } catch (e) {
+          console.error('Failed to delete auth user:', e);
+          // Fallback: at least reset roles
+          await supabase
+            .from('user_roles')
+            .update({ role: 'user' })
+            .eq('user_id', authUserId);
+          await supabase
+            .from('profiles')
+            .update({ role: 'user' })
+            .eq('user_id', authUserId);
+        }
       }
     },
     onSuccess: () => {
