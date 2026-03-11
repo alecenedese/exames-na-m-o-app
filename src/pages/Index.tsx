@@ -1,5 +1,5 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { Link } from "react-router-dom";
+
 import { motion } from "framer-motion";
 import { Stethoscope, ClipboardList, MapPin, Clock, MessageCircle, ChevronRight, Shield, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
