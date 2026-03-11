@@ -35,9 +35,12 @@ export function AdminClinicsTab() {
     loadingPending, 
     clinics,
     loadingClinics,
+    orphanClinicAccounts,
+    loadingOrphanClinicAccounts,
     approveClinic, 
     rejectClinic,
-    deleteClinic 
+    deleteClinic,
+    cleanupOrphanClinicAccounts,
   } = useAdmin();
   
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
