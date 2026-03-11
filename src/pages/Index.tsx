@@ -14,14 +14,6 @@ const Index = () => {
   const { user } = useAuth();
   const { isSuperAdmin, checkingAdmin } = useAdmin();
   const { isClinicOwner, loading: clinicLoading } = useClinicStatus();
-  const navigate = useNavigate();
-
-  // Auto-redirect clinic owners to admin/payment
-  useEffect(() => {
-    if (user && !clinicLoading && !checkingAdmin && (isClinicOwner || isSuperAdmin)) {
-      navigate('/admin', { replace: true });
-    }
-  }, [user, isClinicOwner, isSuperAdmin, clinicLoading, checkingAdmin, navigate]);
 
   const categories = [
     {
