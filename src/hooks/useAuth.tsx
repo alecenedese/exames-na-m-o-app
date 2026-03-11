@@ -170,45 +170,114 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
 
-    if (error) return { error };
+    let targetUser = authData.user;
 
-    if (authData.user) {
-      // Create profile for the clinic admin
-      const { error: profileError } = await supabase
+    if (error) {
+      const isExistingUserError =
+        error.message?.toLowerCase().includes('already registered') ||
+        error.message?.toLowerCase().includes('already exists');
+
+      if (!isExistingUserError) return { error };
+
+      // Recovery flow for orphaned auth accounts: reuse existing account with same credentials
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError || !signInData.user) {
+        return { error: new Error('Este e-mail já existe. Faça login ou redefina a senha para continuar.') };
+      }
+
+      targetUser = signInData.user;
+    }
+
+    if (targetUser) {
+      // Ensure profile exists
+      const { data: existingProfile, error: profileFetchError } = await supabase
         .from('profiles')
-        .insert({
-          user_id: authData.user.id,
-          name: data.responsibleName,
-        });
-      
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        return { error: profileError };
+        .select('id')
+        .eq('user_id', targetUser.id)
+        .maybeSingle();
+
+      if (profileFetchError) return { error: profileFetchError };
+
+      if (!existingProfile) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: targetUser.id,
+            name: data.responsibleName,
+          });
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          return { error: profileError };
+        }
+      } else {
+        await supabase
+          .from('profiles')
+          .update({ name: data.responsibleName, role: 'user' })
+          .eq('user_id', targetUser.id);
       }
 
-      // Create clinic registration (pending approval)
-      const { error: registrationError } = await supabase
+      // Ensure there's a pending clinic registration for this user
+      const { data: existingRegistration, error: registrationFetchError } = await supabase
         .from('clinic_registrations')
-        .insert({
-          user_id: authData.user.id,
-          clinic_name: data.clinicName,
-          cnpj: data.cnpj,
-          address: data.address,
-          phone: data.phone || null,
-          whatsapp: data.whatsapp,
-          opening_hours: data.openingHours || null,
-        });
+        .select('id')
+        .eq('user_id', targetUser.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (registrationError) {
-        console.error('Error creating clinic registration:', registrationError);
-        return { error: registrationError };
+      if (registrationFetchError) return { error: registrationFetchError };
+
+      if (existingRegistration) {
+        const { error: registrationUpdateError } = await supabase
+          .from('clinic_registrations')
+          .update({
+            clinic_name: data.clinicName,
+            cnpj: data.cnpj,
+            address: data.address,
+            phone: data.phone || null,
+            whatsapp: data.whatsapp,
+            opening_hours: data.openingHours || null,
+            status: 'pending',
+            rejection_reason: null,
+            reviewed_at: null,
+            reviewed_by: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingRegistration.id);
+
+        if (registrationUpdateError) {
+          console.error('Error updating clinic registration:', registrationUpdateError);
+          return { error: registrationUpdateError };
+        }
+      } else {
+        const { error: registrationError } = await supabase
+          .from('clinic_registrations')
+          .insert({
+            user_id: targetUser.id,
+            clinic_name: data.clinicName,
+            cnpj: data.cnpj,
+            address: data.address,
+            phone: data.phone || null,
+            whatsapp: data.whatsapp,
+            opening_hours: data.openingHours || null,
+          });
+
+        if (registrationError) {
+          console.error('Error creating clinic registration:', registrationError);
+          return { error: registrationError };
+        }
       }
 
-      // Add user role (still as 'user' until approved)
+      // Keep compatibility with current role system (best-effort)
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
-          user_id: authData.user.id,
+          user_id: targetUser.id,
           role: 'user',
         });
 
