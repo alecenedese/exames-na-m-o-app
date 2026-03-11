@@ -184,6 +184,43 @@ export function AdminClinicsTab() {
         )}
       </div>
 
+      {orphanClinicAccounts && orphanClinicAccounts.length > 0 && (
+        <div className="bg-card rounded-2xl border shadow-sm p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-sm">Contas órfãs detectadas ({orphanClinicAccounts.length})</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Essas contas ficaram sem clínica vinculada e podem bloquear novo cadastro com o mesmo e-mail.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="rounded-xl"
+              disabled={cleanupOrphanClinicAccounts.isPending}
+              onClick={() => cleanupOrphanClinicAccounts.mutate(orphanClinicAccounts.map((account) => account.user_id))}
+            >
+              {cleanupOrphanClinicAccounts.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Limpar contas órfãs'
+              )}
+            </Button>
+          </div>
+
+          <div className="space-y-1">
+            {orphanClinicAccounts.slice(0, 5).map((account) => (
+              <p key={account.id} className="text-xs text-muted-foreground">
+                • {account.name}
+              </p>
+            ))}
+            {orphanClinicAccounts.length > 5 && (
+              <p className="text-xs text-muted-foreground">+{orphanClinicAccounts.length - 5} contas adicionais</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Active Clinics */}
       <div>
         <div className="flex items-center gap-3 mb-4">
