@@ -77,6 +77,16 @@ export interface OrphanClinicAccount {
 export function useAdmin() {
   const queryClient = useQueryClient();
 
+  const deleteUserAccount = async (userId: string) => {
+    const { error } = await supabase.functions.invoke('admin-delete-user', {
+      body: { userId },
+    });
+
+    if (error) {
+      throw new Error(`Falha ao remover conta (${userId}): ${error.message}`);
+    }
+  };
+
   // Check if current user is super admin
   const { data: isSuperAdmin, isLoading: checkingAdmin } = useQuery({
     queryKey: ['is-super-admin'],
@@ -194,7 +204,6 @@ export function useAdmin() {
   // Approve clinic registration
   const approveClinic = useMutation({
     mutationFn: async (registration: ClinicRegistration) => {
-      // Create the clinic
       const { data: newClinic, error: clinicError } = await supabase
         .from('clinics')
         .insert({
@@ -211,10 +220,9 @@ export function useAdmin() {
 
       if (clinicError) throw clinicError;
 
-      // Update registration status
       const { error: updateError } = await supabase
         .from('clinic_registrations')
-        .update({ 
+        .update({
           status: 'approved',
           reviewed_at: new Date().toISOString(),
         })
@@ -222,26 +230,22 @@ export function useAdmin() {
 
       if (updateError) throw updateError;
 
-      // Update user role to clinic_admin
       const { error: roleError } = await supabase
         .from('user_roles')
         .update({ role: 'clinic_admin' })
         .eq('user_id', registration.user_id);
 
       if (roleError) {
-        // If no existing role, insert it
         await supabase
           .from('user_roles')
           .insert({ user_id: registration.user_id, role: 'clinic_admin' });
       }
 
-      // Update profile role
       await supabase
         .from('profiles')
         .update({ role: 'clinic_admin' })
         .eq('user_id', registration.user_id);
 
-      // Link clinic to admin
       const { data: profileData } = await supabase
         .from('profiles')
         .select('id')
@@ -272,7 +276,7 @@ export function useAdmin() {
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const { error } = await supabase
         .from('clinic_registrations')
-        .update({ 
+        .update({
           status: 'rejected',
           rejection_reason: reason,
           reviewed_at: new Date().toISOString(),
@@ -349,10 +353,9 @@ export function useAdmin() {
     },
   });
 
-  // Delete clinic
+  // Delete clinic account completely, including duplicated clinics tied to the same auth user
   const deleteClinic = useMutation({
     mutationFn: async (id: string) => {
-      // Get clinic and resolve auth user BEFORE deleting anything
       const { data: clinic, error: clinicError } = await supabase
         .from('clinics')
         .select('id, admin_user_id')
@@ -374,7 +377,6 @@ export function useAdmin() {
         authUserId = profile?.user_id || null;
       }
 
-      // Fallback for legacy clinics that may not have admin_user_id linked
       if (!authUserId) {
         const { data: latestSubscription, error: subscriptionError } = await supabase
           .from('clinic_subscriptions')
@@ -392,71 +394,13 @@ export function useAdmin() {
         throw new Error('Não foi possível identificar a conta da clínica para exclusão completa.');
       }
 
-      // Delete related clinic_exam_prices
-      const { error: pricesError } = await supabase
-        .from('clinic_exam_prices')
-        .delete()
-        .eq('clinic_id', id);
-      if (pricesError) throw pricesError;
-
-      // Delete related appointments and their exams
-      const { data: clinicAppointments, error: appointmentsQueryError } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('clinic_id', id);
-
-      if (appointmentsQueryError) throw appointmentsQueryError;
-
-      if (clinicAppointments && clinicAppointments.length > 0) {
-        const appointmentIds = clinicAppointments.map(a => a.id);
-
-        const { error: examsError } = await supabase
-          .from('appointment_exams')
-          .delete()
-          .in('appointment_id', appointmentIds);
-        if (examsError) throw examsError;
-
-        const { error: appointmentsDeleteError } = await supabase
-          .from('appointments')
-          .delete()
-          .eq('clinic_id', id);
-        if (appointmentsDeleteError) throw appointmentsDeleteError;
-      }
-
-      // Delete clinic subscriptions
-      const { error: subscriptionsError } = await supabase
-        .from('clinic_subscriptions')
-        .delete()
-        .eq('clinic_id', id);
-      if (subscriptionsError) throw subscriptionsError;
-
-      // Delete clinic registrations for this user
-      const { error: registrationsError } = await supabase
-        .from('clinic_registrations')
-        .delete()
-        .eq('user_id', authUserId);
-      if (registrationsError) throw registrationsError;
-
-      // Delete the clinic
-      const { error: clinicDeleteError } = await supabase
-        .from('clinics')
-        .delete()
-        .eq('id', id);
-      if (clinicDeleteError) throw clinicDeleteError;
-
-      // Delete auth user via edge function (also cleans up profile and roles)
-      const { error: deleteUserError } = await supabase.functions.invoke('admin-delete-user', {
-        body: { userId: authUserId },
-      });
-
-      if (deleteUserError) {
-        throw new Error(`Conta de autenticação não foi removida: ${deleteUserError.message}`);
-      }
+      await deleteUserAccount(authUserId);
     },
     onSuccess: () => {
       toast.success('Clínica removida com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['admin-clinics'] });
       queryClient.invalidateQueries({ queryKey: ['clinic-registrations'] });
+      queryClient.invalidateQueries({ queryKey: ['orphan-clinic-accounts'] });
     },
     onError: (error) => {
       toast.error('Erro ao remover clínica: ' + error.message);
@@ -467,20 +411,7 @@ export function useAdmin() {
   const cleanupOrphanClinicAccounts = useMutation({
     mutationFn: async (userIds: string[]) => {
       if (!userIds.length) return;
-
-      const results = await Promise.all(
-        userIds.map(async (userId) => {
-          const { error } = await supabase.functions.invoke('admin-delete-user', {
-            body: { userId },
-          });
-
-          if (error) {
-            throw new Error(`Falha ao remover conta órfã (${userId}): ${error.message}`);
-          }
-        })
-      );
-
-      return results;
+      await Promise.all(userIds.map(deleteUserAccount));
     },
     onSuccess: () => {
       toast.success('Contas órfãs removidas com sucesso!');
@@ -496,7 +427,6 @@ export function useAdmin() {
   // Delete appointment
   const deleteAppointment = useMutation({
     mutationFn: async (id: string) => {
-      // Delete appointment exams first
       const { error: examsError } = await supabase
         .from('appointment_exams')
         .delete()
@@ -520,27 +450,30 @@ export function useAdmin() {
 
   // Set clinic exam price
   const setClinicPrice = useMutation({
-    mutationFn: async ({ 
-      clinic_id, 
-      exam_type_id, 
-      price, 
-      is_available = true 
-    }: { 
-      clinic_id: string; 
-      exam_type_id: string; 
+    mutationFn: async ({
+      clinic_id,
+      exam_type_id,
+      price,
+      is_available = true,
+    }: {
+      clinic_id: string;
+      exam_type_id: string;
       price: number;
       is_available?: boolean;
     }) => {
       const { data, error } = await supabase
         .from('clinic_exam_prices')
-        .upsert({
-          clinic_id,
-          exam_type_id,
-          price,
-          is_available,
-        }, { 
-          onConflict: 'clinic_id,exam_type_id',
-        })
+        .upsert(
+          {
+            clinic_id,
+            exam_type_id,
+            price,
+            is_available,
+          },
+          {
+            onConflict: 'clinic_id,exam_type_id',
+          }
+        )
         .select()
         .single();
 

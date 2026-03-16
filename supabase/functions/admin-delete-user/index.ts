@@ -7,7 +7,7 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -31,7 +31,11 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user: callerUser }, error: authError } = await supabaseAuth.auth.getUser();
+    const {
+      data: { user: callerUser },
+      error: authError,
+    } = await supabaseAuth.auth.getUser();
+
     if (authError || !callerUser) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -77,6 +81,66 @@ Deno.serve(async (req) => {
       });
     }
 
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("user_id", userId);
+
+    if (profilesError) {
+      throw new Error(`Failed to load profiles: ${profilesError.message}`);
+    }
+
+    const profileIds = (profiles ?? []).map((profile) => profile.id);
+
+    const { data: clinics, error: clinicsError } = profileIds.length
+      ? await supabaseAdmin
+          .from("clinics")
+          .select("id")
+          .in("admin_user_id", profileIds)
+      : { data: [], error: null };
+
+    if (clinicsError) {
+      throw new Error(`Failed to load clinics: ${clinicsError.message}`);
+    }
+
+    const clinicIds = (clinics ?? []).map((clinic) => clinic.id);
+
+    if (clinicIds.length) {
+      const { data: appointments, error: appointmentsError } = await supabaseAdmin
+        .from("appointments")
+        .select("id")
+        .in("clinic_id", clinicIds);
+
+      if (appointmentsError) {
+        throw new Error(`Failed to load appointments: ${appointmentsError.message}`);
+      }
+
+      const appointmentIds = (appointments ?? []).map((appointment) => appointment.id);
+
+      if (appointmentIds.length) {
+        const { error: appointmentExamsError } = await supabaseAdmin
+          .from("appointment_exams")
+          .delete()
+          .in("appointment_id", appointmentIds);
+
+        if (appointmentExamsError) {
+          throw new Error(`Failed to delete appointment exams: ${appointmentExamsError.message}`);
+        }
+      }
+
+      const [appointmentsDelete, pricesDelete, subscriptionsDelete, clinicsDelete] = await Promise.all([
+        supabaseAdmin.from("appointments").delete().in("clinic_id", clinicIds),
+        supabaseAdmin.from("clinic_exam_prices").delete().in("clinic_id", clinicIds),
+        supabaseAdmin.from("clinic_subscriptions").delete().in("clinic_id", clinicIds),
+        supabaseAdmin.from("clinics").delete().in("id", clinicIds),
+      ]);
+
+      if (appointmentsDelete.error) throw new Error(`Failed to delete appointments: ${appointmentsDelete.error.message}`);
+      if (pricesDelete.error) throw new Error(`Failed to delete clinic prices: ${pricesDelete.error.message}`);
+      if (subscriptionsDelete.error) throw new Error(`Failed to delete subscriptions: ${subscriptionsDelete.error.message}`);
+      if (clinicsDelete.error) throw new Error(`Failed to delete clinics: ${clinicsDelete.error.message}`);
+    }
+
     const [rolesDelete, profileDelete, registrationsDelete] = await Promise.all([
       supabaseAdmin.from("user_roles").delete().eq("user_id", userId),
       supabaseAdmin.from("profiles").delete().eq("user_id", userId),
@@ -88,11 +152,11 @@ Deno.serve(async (req) => {
     if (registrationsDelete.error) throw new Error(`Failed to delete clinic registrations: ${registrationsDelete.error.message}`);
 
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (deleteError) {
+    if (deleteError && !deleteError.message.toLowerCase().includes("not found")) {
       throw new Error(`Failed to delete auth user: ${deleteError.message}`);
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, deletedClinicIds: clinicIds }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
