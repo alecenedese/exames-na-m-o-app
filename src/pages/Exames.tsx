@@ -451,7 +451,7 @@ export default function Exames() {
           {selectedExams.length > 0 && (
             <div
               className="fixed left-0 right-0 px-4 max-w-md mx-auto z-40"
-              style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 4.5rem)' }}
+              style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5.5rem)' }}
             >
               <div className="bg-card/95 backdrop-blur-lg rounded-2xl p-3 shadow-xl border">
                 {step === 'exams' && (
